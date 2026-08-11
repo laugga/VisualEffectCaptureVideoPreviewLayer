@@ -68,7 +68,8 @@
     
     CVPixelBufferRef pixelBuffer = NULL;
     NSDictionary * pixelBufferAttributes = @{ (NSString *)kCVPixelBufferCGImageCompatibilityKey: @YES,
-                                              (NSString *)kCVPixelBufferCGBitmapContextCompatibilityKey: @YES };
+                                              (NSString *)kCVPixelBufferCGBitmapContextCompatibilityKey: @YES,
+                                              (NSString *)kCVPixelBufferMetalCompatibilityKey: @YES };
     
     CVReturn result = CVPixelBufferCreate(NULL, width, height, kCVPixelFormatType_32BGRA, (__bridge CFDictionaryRef)pixelBufferAttributes, &pixelBuffer);
     
@@ -77,8 +78,27 @@
         return NULL;
     }
     
-    CIContext * coreImageContext = [CIContext contextWithCGContext:UIGraphicsGetCurrentContext() options:nil];
-    [coreImageContext render:[CIImage imageWithCGImage:image] toCVPixelBuffer:pixelBuffer];
+    // Draw the image into the pixel buffer with CoreGraphics, and not with a CIContext.
+    // A CIContext render is GPU backed and does not guarantee the write landed before
+    // the pixel buffer is wrapped in a MTLTexture and sampled, which made consecutive
+    // renders of the same image differ.
+    CVPixelBufferLockBaseAddress(pixelBuffer, 0);
+
+    CGColorSpaceRef colorspace = CGColorSpaceCreateDeviceRGB();
+    CGContextRef bitmapContext = CGBitmapContextCreate(CVPixelBufferGetBaseAddress(pixelBuffer),
+                                                       width,
+                                                       height,
+                                                       8,
+                                                       CVPixelBufferGetBytesPerRow(pixelBuffer),
+                                                       colorspace,
+                                                       kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst);
+
+    CGContextDrawImage(bitmapContext, CGRectMake(0, 0, width, height), image);
+
+    CGContextRelease(bitmapContext);
+    CGColorSpaceRelease(colorspace);
+
+    CVPixelBufferUnlockBaseAddress(pixelBuffer, 0);
     
     return pixelBuffer;
 }

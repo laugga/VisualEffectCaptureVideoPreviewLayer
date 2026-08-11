@@ -29,8 +29,9 @@
 #define LAUCaptureVideoPreviewLayerGaussianFilterKernel_h
 
 #import <assert.h>
+#import <math.h>
 
-/* 
+/*
  This values are generated from the matlab script:
  docs/matlab/LAUCaptureVideoPreviewLayer.m
  See project documentation for more details
