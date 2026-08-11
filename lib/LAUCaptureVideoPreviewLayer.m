@@ -1,11 +1,11 @@
 /*
- 
+
  LAUCaptureVideoPreviewLayer.m
  LAUCaptureVideoPreviewLayer
- 
+
  Copyright (c) 2016 Luis Laugga.
  Some rights reserved, all wrongs deserved.
- 
+
  Permission is hereby granted, free of charge, to any person obtaining a copy of
  this software and associated documentation files (the "Software"), to deal in
  the Software without restriction, including without limitation the rights to
@@ -22,7 +22,7 @@
  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- 
+
 */
 
 #warning "Objective-C — needs to be refactored and re-written in Swift"
@@ -35,72 +35,79 @@
 #import "LAUCaptureVideoPreviewLayerGaussianFilterKernel.h"
 
 #import <AVFoundation/AVCaptureOutput.h>
-#import <QuartzCore/CAEAGLLayer.h>
-#import <OpenGLES/EAGL.h>
-#import <OpenGLES/ES2/gl.h>
-#import <OpenGLES/ES2/glext.h>
+#import <CoreVideo/CVMetalTextureCache.h>
+#import <Metal/Metal.h>
 
 @interface LAUCaptureVideoPreviewLayer () <LAUCaptureVideoPreviewLayerInternalDelegate>
 {
-    // OpenGL context
-    EAGLContext * _oglContext;
-    
+    // Metal command queue and shader library
+    id<MTLCommandQueue> _commandQueue;
+    id<MTLLibrary> _library;
+
     // Layer used to display a snapshot image of the current framebuffer
     CALayer * _onscreenSnapshotImageSublayer;
-    
+
     // CoreAnimation layer for previewing the visual output of an AVCaptureSession
     // Used for normal rendering. More efficient (CPU and GPU) than our own...
     AVCaptureVideoPreviewLayer * _videoPreviewSublayer;
-    
+
     // Display link (works only on IOS 3.1 or greater)
     CADisplayLink * _displayLink;
-    
-    // OpenGL texture cache (core video)
-    CVOpenGLESTextureCacheRef _oglTextureCache;
-    
+
+    // Metal texture cache (core video)
+    CVMetalTextureCacheRef _metalTextureCache;
+
     // Last Pixel buffer set
     // Waiting to be rendered or last one rendered
-    CVOpenGLESTextureRef _pixelBufferTexture;
-    
-    // Shader programs
-    GLuint _defaultProgram; // On-screen
-    GLuint _blurFilterProgram; // Off-screen
-    
-    // Shader bindings
-    struct UniformHandles _defaultUniforms;
-    struct AttributeHandles _defaultAttributes;
-    struct UniformHandles _blurFilterUniforms;
-    struct AttributeHandles _blurFilterAttributes;
-    
-    // Offscreen Framebuffer
-    TextureInstance_t _pixelBufferTextureInstance;
-    TextureInstance_t _offscreenTextureInstances[2];
-    
-    // Onscreen Framebuffer
-    GLuint _onscreenFramebuffer;
-    GLuint _onscreenColorRenderbuffer;
-    GLint _onscreenColorRenderbufferWidth;
-    GLint _onscreenColorRenderbufferHeight;
-    struct TextureInstance _onscreenTextureInstance;
-    
+    CVMetalTextureRef _pixelBufferTexture;
+
+    // Render pipeline states, the Metal equivalent of the linked glsl programs
+    id<MTLRenderPipelineState> _defaultPipelineState; // On-screen
+    id<MTLRenderPipelineState> _blurFilterPipelineState; // Off-screen
+
+    // Texture sampling, shared by every render pipeline
+    id<MTLSamplerState> _samplerState;
+
+    // Shader arguments
+    FilterUniforms_t _filterUniforms;
+
+    // Offscreen render targets
+    LAUTextureInstance * _pixelBufferTextureInstance;
+    NSArray<LAUTextureInstance *> * _offscreenTextureInstances; // 2, ping-pong
+
+    // Pixel buffer dimensions, before any downsampling is applied
+    float _pixelBufferTextureNativeWidth;
+    float _pixelBufferTextureNativeHeight;
+
+    // Onscreen drawable
+    NSInteger _onscreenDrawableWidth;
+    NSInteger _onscreenDrawableHeight;
+    LAUTextureInstance * _onscreenTextureInstance;
+
+    // Texture instance drawn by the last onscreen pass, used for the snapshot
+    LAUTextureInstance * _onscreenSourceTextureInstance;
+
+    // Texture used to read back the onscreen contents (renderInContext:)
+    id<MTLTexture> _onscreenSnapshotTexture;
+
     // Filter (Kernel)
     size_t _filterKernelCount; // Number of filter kernels created
     size_t _filterKernelIndex; // Currently loaded filter kernel
     FilterKernel_t * _filterKernelArray; // Kernels used for the interpolation between [0,1]
-    
+
     // Filter (Parameters)
-    GLfloat _filterSplitPassDirectionVector[2]; // Separable filter, apply 2x each in a specific direction (x or y)
-    GLuint _filterMultiplePassCount; // Number of times filter should be applied before onscreen rendering
-    GLfloat _filterDownsamplingFactor; // Downsample offscreen textures by a factor (ie. 2 = resize dimensions by 1/2)
-    
+    float _filterSplitPassDirectionVector[2]; // Separable filter, apply 2x each in a specific direction (x or y)
+    unsigned int _filterMultiplePassCount; // Number of times filter should be applied before onscreen rendering
+    float _filterDownsamplingFactor; // Downsample offscreen textures by a factor (ie. 2 = resize dimensions by 1/2)
+
     // Filter (Intensity)
     float _filterIntensity; // [0,1], 0 means no filter is applied
     BOOL _filterIntensityNeedsUpdate; // YES if filter intensity changed between draw calls
     dispatch_source_t _filterIntensityTransitionTimer; // Use for animated transition between different indices
     float _filterIntensityTransitionTarget;
-    
+
     // Filter (Bounds)
-    GLfloat _filterBounds[4];
+    float _filterBounds[4];
     BOOL _filterBoundsNeedsUpdate;
 }
 
@@ -124,73 +131,100 @@
     {
         // Assign the AVCaptureSession, which is managed by a LAUCaptureVideoPreviewLayerInternal instance
         self.session = session;
-        
-        // On iOS8 and later we use the native scale of the screen as our content scale factor.
+
+        // We use the native scale of the screen as our content scale factor.
         // This allows us to render to the exact pixel resolution of the screen which avoids additional scaling and GPU rendering work.
         // For example the iPhone 6 Plus appears to UIKit as a 736 x 414 pt screen with a 3x scale factor (2208 x 1242 virtual pixels).
         // But the native pixel dimensions are actually 1920 x 1080.
         // Since we are streaming 1080p buffers from the camera we can render to the iPhone 6 Plus screen at 1:1 with no additional scaling if we set everything up correctly.
         // Using the native scale of the screen also allows us to render at full quality when using the display zoom feature on iPhone 6/6 Plus.
-        
-        // Only try to compile this code if we are using the 8.0 or later SDK.
-#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 80000
-        if ([UIScreen instancesRespondToSelector:@selector(nativeScale)])
-        {
-            self.contentsScale = [UIScreen mainScreen].nativeScale;
-        }
-        else
-#endif
-        {
-            self.contentsScale = [UIScreen mainScreen].scale;
-        }
-        
-        // Setup the CAEAGLLayer for screen renderbuffer
+        self.contentsScale = [UIScreen mainScreen].nativeScale;
+
+        // Setup the CAMetalLayer for onscreen rendering
         self.opaque = YES;
-        self.drawableProperties = @{ kEAGLDrawablePropertyRetainedBacking : @(NO),
-                                     kEAGLDrawablePropertyColorFormat : kEAGLColorFormatRGBA8 };
-        
-        // OpenGL ES 2.0 only
-        _oglContext = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2];
-        
-        if (!_oglContext || ![EAGLContext setCurrentContext:_oglContext])
+        self.pixelFormat = MTLPixelFormatBGRA8Unorm;
+        self.framebufferOnly = YES;
+
+        // The Metal device replaces the EAGLContext
+        self.device = MTLCreateSystemDefaultDevice();
+
+        if (!self.device)
         {
-            Log(@"LAUCaptureVideoPreviewLayer: Could not create a valid EAGLContext");
+            Log(@"LAUCaptureVideoPreviewLayer: Could not create a valid MTLDevice");
             return nil;
         }
-        
+
+        _commandQueue = [self.device newCommandQueue];
+        _library = loadLibrary(self.device);
+
+        if (!_commandQueue || !_library)
+        {
+            Log(@"LAUCaptureVideoPreviewLayer: Could not create a valid MTLCommandQueue or MTLLibrary");
+            return nil;
+        }
+
+        // Texture instances used by the offscreen and onscreen passes
+        _pixelBufferTextureInstance = [LAUTextureInstance new];
+        _offscreenTextureInstances = @[[LAUTextureInstance new], [LAUTextureInstance new]];
+        _onscreenTextureInstance = [LAUTextureInstance new];
+
+        // Filter bounds default to the whole texture
+        _filterUniforms.filterBounds = simd_make_float4(0.0f, 0.0f, 1.0f, 1.0f);
+
         // Preemptively load filter in memory
         [self loadFilter];
     }
     return self;
 }
 
+- (void)dealloc
+{
+    if (_pixelBufferTexture)
+    {
+        CFRelease(_pixelBufferTexture);
+        _pixelBufferTexture = NULL;
+    }
+
+    if (_metalTextureCache)
+    {
+        CFRelease(_metalTextureCache);
+        _metalTextureCache = NULL;
+    }
+
+    if (_filterKernelArray)
+    {
+        for (size_t i = 0; i < _filterKernelCount; ++i)
+        {
+            releaseFilterKernel(&_filterKernelArray[i]);
+        }
+
+        free(_filterKernelArray);
+        _filterKernelArray = NULL;
+    }
+}
+
 - (void)layoutSublayers
 {
     PrettyLog;
-    
-    [super layoutSublayers];
-    
-    if (!_onscreenFramebuffer)
-    {
-        // Create the onscreen framebuffer
-        [self createOnscreenFramebufferForLayer:self];
 
-        // Load glsl programs, uniforms and attributes
-        [self loadBlurFilterProgram];
-        [self loadDefaultProgram];
-        
-        // Disable depth testing
-        glDisable(GL_DEPTH_TEST);
-        
-        // Use texture 0
-        glActiveTexture(GL_TEXTURE0);
-        
-        // OpenGL pre-warm
+    [super layoutSublayers];
+
+    // Keep the drawable in sync with the layer bounds
+    [self updateDrawableSize];
+
+    if (!_defaultPipelineState)
+    {
+        // Load the render pipeline states and the sampler state
+        [self loadBlurFilterPipelineState];
+        [self loadDefaultPipelineState];
+        [self loadSamplerState];
+
+        // Metal pre-warm
         if (!_internal.sampleBuffer)
         {
             [self drawColor:self.backgroundColor];
         }
-        
+
         // Set filter intensity from blur value
         [self setFilterIntensity:_blur];
     #if FilterBoundsEnabled
@@ -199,69 +233,50 @@
     }
 }
 
-- (void)loadDefaultProgram
+- (void)loadDefaultPipelineState
 {
-    if (_defaultProgram)
+    if (_defaultPipelineState)
     {
         return;
     }
-    
-    // Load default program
-    _defaultProgram = loadProgram(VertexShaderSourceDefault, FragmentShaderSourceDefault);
-    validateProgram(_defaultProgram);
-    
-    // Bind default attributes
-    _defaultAttributes.VertPosition = glGetAttribLocation(_defaultProgram, "VertPosition");
-    _defaultAttributes.VertTextureCoordinate = glGetAttribLocation(_defaultProgram, "VertTextureCoordinate");
-    
-    // Bind default uniforms
-    _defaultUniforms.FragTextureData = glGetUniformLocation(_defaultProgram, "FragTextureData");
-    
-    // Use the blur filter glsl program
-    glUseProgram(_defaultProgram);
+
+    // Load default render pipeline state
+    _defaultPipelineState = loadRenderPipelineState(self.device, _library, VertexShaderNameDefault, FragmentShaderNameDefault, self.pixelFormat, @"Default");
 }
 
-- (void)loadBlurFilterProgram
+- (void)loadBlurFilterPipelineState
 {
-    if (_blurFilterProgram)
+    if (_blurFilterPipelineState)
     {
         return;
     }
-    
-    // Load blur filter program
+
+    // Load blur filter render pipeline state
 #if FilterBilinearTextureSamplingEnabled
 #if FilterBoundsEnabled
-    _blurFilterProgram = loadProgram(VertexShaderSourceBlurFilterBts, FragmentShaderSourceBlurFilterBtsBounds);
+    NSString * fragmentShaderName = FragmentShaderNameBlurFilterBtsBounds;
 #else
-    _blurFilterProgram = loadProgram(VertexShaderSourceBlurFilterBts, FragmentShaderSourceBlurFilterBts);
+    NSString * fragmentShaderName = FragmentShaderNameBlurFilterBts;
 #endif
 #else
-    _blurFilterProgram = loadProgram(VertexShaderSourceDefault, FragmentShaderSourceBlurFilterDts);
+    NSString * fragmentShaderName = FragmentShaderNameBlurFilterDts;
 #endif
-    
-    validateProgram(_blurFilterProgram);
-    
-    // Bind blur filter attributes
-    _blurFilterAttributes.VertPosition = glGetAttribLocation(_blurFilterProgram, "VertPosition");
-    _blurFilterAttributes.VertTextureCoordinate = glGetAttribLocation(_blurFilterProgram, "VertTextureCoordinate");
-    
-    // Bind blur filter uniforms
-    _blurFilterUniforms.FragTextureData = glGetUniformLocation(_blurFilterProgram, "FragTextureData");
-    _blurFilterUniforms.FragFilterBounds = glGetUniformLocation(_blurFilterProgram, "FragFilterBounds");
-#if FilterBilinearTextureSamplingEnabled
-    _blurFilterUniforms.FilterKernelSamples = glGetUniformLocation(_blurFilterProgram, "FilterKernelSamples");
-    _blurFilterUniforms.VertFilterKernelOffsets = glGetUniformLocation(_blurFilterProgram, "VertFilterKernelOffsets");
-    _blurFilterUniforms.FragFilterKernelWeights = glGetUniformLocation(_blurFilterProgram, "FragFilterKernelWeights");
-#else
-    _blurFilterUniforms.FragFilterKernelRadius = glGetUniformLocation(_blurFilterProgram, "FragFilterKernelRadius");
-    _blurFilterUniforms.FragFilterKernelSize = glGetUniformLocation(_blurFilterProgram, "FragFilterKernelSize");
-    _blurFilterUniforms.FragFilterKernelWeights = glGetUniformLocation(_blurFilterProgram, "FragFilterKernelWeights");
-#endif
-    
-    _blurFilterUniforms.FilterSplitPassDirectionVector = glGetUniformLocation(_blurFilterProgram, "FilterSplitPassDirectionVector");
+
+    _blurFilterPipelineState = loadRenderPipelineState(self.device, _library, VertexShaderNameDefault, fragmentShaderName, self.pixelFormat, @"Blur Filter");
 }
 
-- (void)unloadProgram
+- (void)loadSamplerState
+{
+    if (_samplerState)
+    {
+        return;
+    }
+
+    // Linear filtering and clamp to edge, for every texture sampled by the shaders
+    _samplerState = loadSamplerState(self.device);
+}
+
+- (void)unloadPipelineStates
 {
     // TODO
 }
@@ -276,45 +291,79 @@
     [self renderInContext:context andRedrawPixelBuffer:YES];
 }
 
+static void releasePixelsData(void * info, const void * data, size_t size)
+{
+    free((void *)data);
+}
+
 - (void)renderInContext:(CGContextRef)context andRedrawPixelBuffer:(BOOL)redrawPixelBuffer
 {
-    // Assuming kEAGLColorFormatRGBA8 format is used
-    NSInteger pixelsDataSize = _onscreenColorRenderbufferWidth * _onscreenColorRenderbufferHeight * 4;
-    GLubyte * pixelsData = (GLubyte * )calloc(pixelsDataSize, sizeof(GLubyte));
-    
-    // Redraw pixelBuffer or read the current contents of the onscreen framebuffer
+    // Redraw pixelBuffer, otherwise the last drawn texture instance is used
     if (redrawPixelBuffer) {
         [self drawPixelBuffer:nil];
     }
-    
-    // Bind the offscreen framebuffer
-    glBindFramebuffer(GL_FRAMEBUFFER, _onscreenFramebuffer);
-    
-    // Read pixel data from the framebuffer
-    glPixelStorei(GL_PACK_ALIGNMENT, 4);
-    glReadPixels(0, 0, _onscreenColorRenderbufferWidth, _onscreenColorRenderbufferHeight, GL_RGBA, GL_UNSIGNED_BYTE, pixelsData);
-    
+
+    // Nothing was ever drawn, there is nothing to read back
+    if (!_onscreenSourceTextureInstance)
+    {
+        Log(@"LAUCaptureVideoPreviewLayer: No texture instance was drawn yet. I am just going to bailout.");
+        return;
+    }
+
+    // The contents of a CAMetalDrawable can not be read back after being presented,
+    // so the onscreen pass is drawn once more into a texture we own
+    id<MTLTexture> snapshotTexture = [self onscreenSnapshotTexture];
+
+    if (!snapshotTexture)
+    {
+        return;
+    }
+
+    id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
+    [self drawOnscreenOffscreenTextureInstance:_onscreenSourceTextureInstance intoTexture:snapshotTexture commandBuffer:commandBuffer];
+    [commandBuffer commit];
+    [commandBuffer waitUntilCompleted];
+
+    // Assuming MTLPixelFormatBGRA8Unorm format is used
+    NSUInteger pixelsDataBytesPerRow = _onscreenDrawableWidth * 4;
+    NSUInteger pixelsDataSize = pixelsDataBytesPerRow * _onscreenDrawableHeight;
+    uint8_t * pixelsData = (uint8_t *)calloc(pixelsDataSize, sizeof(uint8_t));
+
+    // Read pixel data from the snapshot texture
+    [snapshotTexture getBytes:pixelsData
+                  bytesPerRow:pixelsDataBytesPerRow
+                   fromRegion:MTLRegionMake2D(0, 0, _onscreenDrawableWidth, _onscreenDrawableHeight)
+                  mipmapLevel:0];
+
     // Create a CGImage instance with the pixels data
-    // Use kCGImageAlphaNoneSkipLast for opaque views (ignore the alpha channel) or kCGImageAlphaPremultipliedLast for non-opaque views
-    CGDataProviderRef dataProvider = CGDataProviderCreateWithData(NULL, pixelsData, pixelsDataSize, NULL);
+    // Metal gives us BGRA, which is 32 bits little-endian with the alpha component first
+    CGDataProviderRef dataProvider = CGDataProviderCreateWithData(NULL, pixelsData, pixelsDataSize, releasePixelsData);
     CGColorSpaceRef colorspace = CGColorSpaceCreateDeviceRGB();
-    CGImageRef image = CGImageCreate(_onscreenColorRenderbufferWidth,
-                                     _onscreenColorRenderbufferHeight,
+    CGImageRef image = CGImageCreate(_onscreenDrawableWidth,
+                                     _onscreenDrawableHeight,
                                      8,
                                      32,
-                                     _onscreenColorRenderbufferWidth * 4,
+                                     pixelsDataBytesPerRow,
                                      colorspace,
-                                     kCGBitmapByteOrder32Big | kCGImageAlphaPremultipliedLast,
+                                     kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst,
                                      dataProvider,
                                      NULL,
                                      true,
                                      kCGRenderingIntentDefault);
-    
-    // Flip the CGImage by rendering it to the flipped bitmap context (UIKit coordinate system is the inverse of the Quartz/OpenGL coordinate system)
+
+    CGFloat width = _onscreenDrawableWidth / self.contentsScale;
+    CGFloat height = _onscreenDrawableHeight / self.contentsScale;
+
+    // Unlike glReadPixels, which returned the rows bottom-up, the first row read from a
+    // MTLTexture is the top one. Flip the context so the image is not drawn upside down
+    // (UIKit coordinate system is the inverse of the Quartz/Metal coordinate system).
+    CGContextSaveGState(context);
     CGContextSetBlendMode(context, kCGBlendModeCopy);
-    CGContextDrawImage(context, CGRectMake(0.0, 0.0, _onscreenColorRenderbufferWidth / self.contentsScale, _onscreenColorRenderbufferHeight / self.contentsScale), image);
-    
-    free(pixelsData);
+    CGContextTranslateCTM(context, 0.0, height);
+    CGContextScaleCTM(context, 1.0, -1.0);
+    CGContextDrawImage(context, CGRectMake(0.0, 0.0, width, height), image);
+    CGContextRestoreGState(context);
+
     CFRelease(dataProvider);
     CFRelease(colorspace);
     CGImageRelease(image);
@@ -332,7 +381,7 @@
         [_displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
         _displayLink.paused = YES;
     }
-    
+
     return _displayLink;
 }
 
@@ -377,28 +426,28 @@
 - (void)addAVCaptureVideoPreviewSublayer
 {
     PrettyLog;
-    
+
     if (self.internal.session)
     {
         if (!_videoPreviewSublayer)
         {
             // Create the session video preview layer from AVFoundation
             _videoPreviewSublayer = [[AVCaptureVideoPreviewLayer alloc] initWithSession:self.internal.session];
-            
+
             _videoPreviewSublayer.backgroundColor = self.backgroundColor;
             _videoPreviewSublayer.videoGravity = AVLayerVideoGravityResizeAspectFill;  // TODO self.videoGravity
             _videoPreviewSublayer.bounds = self.bounds;
             _videoPreviewSublayer.anchorPoint = CGPointMake(0,0);
             _videoPreviewSublayer.hidden = YES;
-            
+
             [self addSublayer:_videoPreviewSublayer];
         }
-        
+
         [CATransaction begin];
         [CATransaction setValue: (id) kCFBooleanTrue forKey: kCATransactionDisableActions];
         _videoPreviewSublayer.hidden = NO;
         [CATransaction commit];
-        
+
         self.displayLink.paused = YES;
         [self flushPixelBufferCache];
     }
@@ -407,12 +456,12 @@
 - (void)removeAVCaptureVideoPreviewSublayer
 {
     PrettyLog;
-    
+
     if (_videoPreviewSublayer)
     {
         [self drawPixelBuffer:nil];
         self.displayLink.paused = NO;
-        
+
         [CATransaction begin];
         [CATransaction setValue: (id) kCFBooleanTrue forKey: kCATransactionDisableActions];
         _videoPreviewSublayer.hidden = YES;
@@ -430,14 +479,14 @@
         _internal = [LAUCaptureVideoPreviewLayerInternal new];
         _internal.delegate = self;
     }
-    
+
     return _internal;
 }
 
 - (void)captureVideoPreviewLayerInternal:(LAUCaptureVideoPreviewLayerInternal *)internal sessionDidStopRunning:(AVCaptureSession *)session
 {
     [self setBlur:1.0 animated:YES];
-    
+
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         [self setDisplayLinkPaused:YES]; // TODO pause when blur-in animation finishes
     });
@@ -447,14 +496,14 @@
 {
     // Delay the fade out transition because first frames after session starts running are darker
     CFTimeInterval fadeOutDelay = 0.7f;
-    
+
     // This will show the snapshot image layer to hide the dark frames
     [self addOnscreenSnapshotImageSublayer];
-    
+
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         [self setDisplayLinkPaused:NO]; // TODO investigate why first frames after session starts running are darker...
     });
-    
+
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(fadeOutDelay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         [self removeOnscreenSnapshotImageSublayer];
         [self setBlur:0.0 animated:YES];
@@ -467,80 +516,69 @@
 - (CVPixelBufferRef)pixelBufferFromImageNamed:(NSString *)imageName
 {
     CGImageRef image = [UIImage imageNamed:imageName].CGImage;
-    
+
     if (!image) {
         Log(@"Failed to load image %@", imageName);
         return NULL;
     }
-    
+
     size_t width = CGImageGetWidth(image);
     size_t height = CGImageGetHeight(image);
-    
+
     CVPixelBufferRef pixelBuffer = NULL;
     NSDictionary * pixelBufferAttributes = @{ (NSString *)kCVPixelBufferCGImageCompatibilityKey: @YES,
-                                              (NSString *)kCVPixelBufferCGBitmapContextCompatibilityKey: @YES };
-    
+                                              (NSString *)kCVPixelBufferCGBitmapContextCompatibilityKey: @YES,
+                                              (NSString *)kCVPixelBufferMetalCompatibilityKey: @YES };
+
     CVReturn result = CVPixelBufferCreate(NULL, width, height, kCVPixelFormatType_32BGRA, (__bridge CFDictionaryRef)pixelBufferAttributes, &pixelBuffer);
-    
+
     if (result != kCVReturnSuccess) {
         Log(@"Failed to create pixelBuffer from image %@", imageName);
         return NULL;
     }
-    
+
     CIContext * coreImageContext = [CIContext contextWithCGContext:UIGraphicsGetCurrentContext() options:nil];
     [coreImageContext render:[CIImage imageWithCGImage:image] toCVPixelBuffer:pixelBuffer];
-    
+
     return pixelBuffer;
 }
 
-- (CVOpenGLESTextureRef)oglTextureFromPixelBuffer:(CVPixelBufferRef)pixelBuffer
+- (CVMetalTextureRef)metalTextureFromPixelBuffer:(CVPixelBufferRef)pixelBuffer
 {
-    // Create a new CVOpenGLESTexture cache
-    if (!_oglTextureCache)
+    // Create a new CVMetalTexture cache
+    if (!_metalTextureCache)
     {
-        NSDictionary * cacheAttributes = @{ (NSString *)kCVOpenGLESTextureCacheMaximumTextureAgeKey: @(0.1) };
-        
-        CVReturn result = CVOpenGLESTextureCacheCreate(kCFAllocatorDefault, (__bridge CFDictionaryRef _Nullable)(cacheAttributes), _oglContext, NULL, &_oglTextureCache);
+        NSDictionary * cacheAttributes = @{ (NSString *)kCVMetalTextureCacheMaximumTextureAgeKey: @(0.1) };
+
+        CVReturn result = CVMetalTextureCacheCreate(kCFAllocatorDefault, (__bridge CFDictionaryRef _Nullable)(cacheAttributes), self.device, NULL, &_metalTextureCache);
         if (result != kCVReturnSuccess)
         {
-            Log(@"CameraOGLPreviewView: Error at CVOpenGLESTextureCacheCreate %d", result);
+            Log(@"LAUCaptureVideoPreviewLayer: Error at CVMetalTextureCacheCreate %d", result);
             return NULL;
         }
     }
-    
-    // Create a CVOpenGLESTexture from a CVPixelBufferRef
+
+    // Create a CVMetalTexture from a CVPixelBufferRef
     size_t textureWidth = CVPixelBufferGetWidth(pixelBuffer);
     size_t textureHeight = CVPixelBufferGetHeight(pixelBuffer);
-    CVOpenGLESTextureRef oglTexture = NULL;
-    CVReturn result = CVOpenGLESTextureCacheCreateTextureFromImage(kCFAllocatorDefault,
-                                                                   _oglTextureCache,
-                                                                   pixelBuffer,
-                                                                   NULL,
-                                                                   GL_TEXTURE_2D,
-                                                                   GL_RGBA,
-                                                                   (GLsizei)textureWidth,
-                                                                   (GLsizei)textureHeight,
-                                                                   GL_BGRA,
-                                                                   GL_UNSIGNED_BYTE,
-                                                                   0,
-                                                                   &oglTexture);
-    
+    CVMetalTextureRef metalTexture = NULL;
+    CVReturn result = CVMetalTextureCacheCreateTextureFromImage(kCFAllocatorDefault,
+                                                                _metalTextureCache,
+                                                                pixelBuffer,
+                                                                NULL,
+                                                                MTLPixelFormatBGRA8Unorm,
+                                                                textureWidth,
+                                                                textureHeight,
+                                                                0,
+                                                                &metalTexture);
+
     if (result != kCVReturnSuccess)
     {
-        Log(@"CVOpenGLESTextureCacheCreateTextureFromImage failed (error: %d)", result);
+        Log(@"CVMetalTextureCacheCreateTextureFromImage failed (error: %d)", result);
         return NULL;
     }
-    
-//    GLfloat lowerLeft[2];
-//    GLfloat lowerRight[2];
-//    GLfloat upperRight[2];
-//    GLfloat upperLeft[2];
-//    
-//    CVOpenGLESTextureGetCleanTexCoords(oglTexture, lowerLeft, lowerRight, upperRight, upperLeft);
-//    
-//    NSLog(@"CVOpenGLESTextureGetCleanTexCoords (%f, %f), (%f, %f), (%f, %f), (%f, %f)", lowerLeft[0], lowerLeft[1], lowerRight[0], lowerRight[1], upperRight[0], upperRight[1], upperLeft[0], upperLeft[1]);
-    
-    return oglTexture;
+
+    return metalTexture;
 }
 
 - (void)flushPixelBufferCache
@@ -551,122 +589,90 @@
         CFRelease(_pixelBufferTexture);
         _pixelBufferTexture = NULL;
     }
-    
-    if (_oglTextureCache)
+
+    if (_metalTextureCache)
     {
-        CVOpenGLESTextureCacheFlush(_oglTextureCache, 0);
+        CVMetalTextureCacheFlush(_metalTextureCache, 0);
     }
 }
 
 #pragma mark -
 #pragma mark Offscreen rendering
 
-- (GLuint)createFramebufferForOffscreenTextureInstance:(TextureInstance_t *)offscreenTextureInstance
+- (id<MTLTexture>)createRenderTargetForOffscreenTextureInstance:(LAUTextureInstance *)offscreenTextureInstance
 {
-    // Delete potential previously created framebuffer
-    if(offscreenTextureInstance->framebuffer)
-    {
-        glDeleteFramebuffers(1, &offscreenTextureInstance->framebuffer);
-    }
-    
-    // Allocating offscreen renderbuffer memory
-    glGenFramebuffers(1, &offscreenTextureInstance->framebuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, offscreenTextureInstance->framebuffer);
-    
-    // Create the texture to render
-    glGenTextures(1, &offscreenTextureInstance->textureName);
-    offscreenTextureInstance->textureTarget = GL_TEXTURE_2D;
-    glBindTexture(GL_TEXTURE_2D, offscreenTextureInstance->textureName);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, offscreenTextureInstance->textureWidth, offscreenTextureInstance->textureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-    
-    // Set texture parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    
-    // Attach color component of renderbuffer to texture
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, offscreenTextureInstance->textureName, 0);
-    
-    if (!checkFramebufferStatusComplete())
-    {
-        return 0;
-    }
-    
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    
-    return offscreenTextureInstance->framebuffer;
+    // Create the texture to render, it doubles as the render target of the pass.
+    // In Metal there is no framebuffer object to attach it to, the render pass
+    // descriptor points at the texture directly.
+    offscreenTextureInstance.texture = loadRenderTargetTexture(self.device,
+                                                               (NSUInteger)roundf(offscreenTextureInstance.textureWidth),
+                                                               (NSUInteger)roundf(offscreenTextureInstance.textureHeight),
+                                                               self.pixelFormat,
+                                                               MTLStorageModePrivate);
+
+    offscreenTextureInstance.renderPassDescriptor = loadRenderPassDescriptor(offscreenTextureInstance.texture);
+
+    return offscreenTextureInstance.texture;
 }
 
-- (void)loadOffscreenTextureInstance:(TextureInstance_t *)offscreenTextureInstance
+- (void)loadOffscreenTextureInstance:(LAUTextureInstance *)offscreenTextureInstance
 {
-    // Create a new offscreen framebuffer
-    [self createFramebufferForOffscreenTextureInstance:offscreenTextureInstance];
-    
+    // Create a new offscreen render target
+    [self createRenderTargetForOffscreenTextureInstance:offscreenTextureInstance];
+
     // Use triangle strip
-    offscreenTextureInstance->primitiveType = GL_TRIANGLE_STRIP;
-    
+    offscreenTextureInstance.primitiveType = MTLPrimitiveTypeTriangleStrip;
+
     // Vertex data
+    //
+    // The texture coordinates are vertically flipped when compared with the OpenGL ES
+    // implementation. Metal renders the first row of a texture at the top of the
+    // viewport, while OpenGL rendered it at the bottom, so flipping the coordinates
+    // here keeps every offscreen pass an exact copy of its source, whatever the
+    // number of passes applied.
     static const VertexData_t vertexData[] = {
         {
             {-1.0f, -1.0f}, // Position, bottom left
-            {0.0f, 0.0f} // Texture Coordinate
+            {0.0f, 1.0f} // Texture Coordinate
         },
         {
             {1.0f, -1.0f}, // bottom right
-            {1.0f, 0.0f}
+            {1.0f, 1.0f}
         },
         {
             {-1.0f,  1.0f}, // top left
-            {0.0f,  1.0f}
+            {0.0f,  0.0f}
         },
         {
             {1.0f,  1.0f}, // top right
-            {1.0f,  1.0f}
+            {1.0f,  0.0f}
         }
     };
-    
-    static const GLsizei stride = sizeof(VertexData_t);
-    offscreenTextureInstance->vertexCount = 4;
-    
-    // Vertex Array Object
-    glGenVertexArraysOES(1, &offscreenTextureInstance->vertexArray);
-    glBindVertexArrayOES(offscreenTextureInstance->vertexArray);
-    
-    // VBO
-    glGenBuffers(1, &(offscreenTextureInstance->vertexBuffer));
-    glBindBuffer(GL_ARRAY_BUFFER, offscreenTextureInstance->vertexBuffer);
-    glBufferData(GL_ARRAY_BUFFER, offscreenTextureInstance->vertexCount * stride, vertexData, GL_STATIC_DRAW);
-    
-    // Position
-    glEnableVertexAttribArray(_blurFilterAttributes.VertPosition);
-    glVertexAttribPointer(_blurFilterAttributes.VertPosition, 2, GL_FLOAT, GL_FALSE, stride, (GLvoid*)offsetof(VertexData_t, position));
-    
-    // TextureCoordinate
-    glEnableVertexAttribArray(_blurFilterAttributes.VertTextureCoordinate);
-    glVertexAttribPointer(_blurFilterAttributes.VertTextureCoordinate, 2, GL_FLOAT, GL_FALSE, stride, (GLvoid*)offsetof(VertexData_t, textureCoordinate));
-    
-    // Unbind VBO + VAO
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArrayOES(0);
+
+    offscreenTextureInstance.vertexCount = 4;
+    offscreenTextureInstance.vertexBuffer = [self.device newBufferWithBytes:vertexData
+                                                                     length:sizeof(vertexData)
+                                                                    options:MTLResourceStorageModeShared];
 }
 
 - (void)scaleDownPixelBufferTextureInstanceDimensions
 {
     // Default downsampling factor
-    GLfloat textureDownsamplingFactor = _filterDownsamplingFactor;
-    
-    // Pixel buffer dimensions and ratio
-    GLfloat pixelBufferWidth = _pixelBufferTextureInstance.textureWidth;
-    GLfloat pixelBufferHeight = _pixelBufferTextureInstance.textureHeight;
-    GLfloat pixelBufferRatio = pixelBufferWidth / pixelBufferHeight; // Usually the pixelBuffer w > h
-    
+    float textureDownsamplingFactor = _filterDownsamplingFactor;
+
+    // Pixel buffer dimensions and ratio.
+    // The native dimensions are used, and not the ones currently set on the texture
+    // instance, so that a pixel buffer which is drawn more than once (when no new
+    // sample buffer is available) is not downsampled again on every draw call.
+    float pixelBufferWidth = _pixelBufferTextureNativeWidth;
+    float pixelBufferHeight = _pixelBufferTextureNativeHeight;
+    float pixelBufferRatio = pixelBufferWidth / pixelBufferHeight; // Usually the pixelBuffer w > h
+
     // Screen dimensions and ratio
-    GLfloat onscreenWidth = ((GLfloat)_onscreenColorRenderbufferWidth);
-    GLfloat onscreenHeight = ((GLfloat)_onscreenColorRenderbufferHeight);
-    GLfloat onscreenRatio = onscreenHeight / onscreenWidth;
-    
+    float onscreenWidth = ((float)_onscreenDrawableWidth);
+    float onscreenHeight = ((float)_onscreenDrawableHeight);
+    float onscreenRatio = onscreenHeight / onscreenWidth;
+
     if (onscreenRatio > pixelBufferRatio)
     {
         // Use height to calculate downsampling effective factor on pixelBuffer
@@ -677,101 +683,117 @@
         // Use width to calculate downsampling effective factor on pixelBuffer
         textureDownsamplingFactor = pixelBufferHeight / (onscreenWidth / _filterDownsamplingFactor);
     }
-    
-    // Downsample input pixelBuffer by a specific factor
-    GLfloat scaledWidth = pixelBufferWidth / textureDownsamplingFactor;
-    GLfloat scaledHeight = pixelBufferHeight / textureDownsamplingFactor;
-    
+
+    // Downsample input pixelBuffer by a specific factor.
+    // The dimensions are rounded to whole pixels: they end up being both the size of
+    // the offscreen texture and the size of the viewport drawn into it, and a viewport
+    // narrower than its render target would leave the last row or column of the
+    // texture unrasterized.
+    float scaledWidth = MAX(1.0f, roundf(pixelBufferWidth / textureDownsamplingFactor));
+    float scaledHeight = MAX(1.0f, roundf(pixelBufferHeight / textureDownsamplingFactor));
+
     // Create a temporary offscreen texture instance wrapping the pixelBuffer
     _pixelBufferTextureInstance.textureWidth = scaledWidth;
     _pixelBufferTextureInstance.textureHeight = scaledHeight;
 }
 
-- (void)drawOffscreenTextureInstance:(TextureInstance_t *)srcTextureInstance onOffscreenTextureInstance:(TextureInstance_t *)destTextureInstance
+- (void)drawOffscreenTextureInstance:(LAUTextureInstance *)srcTextureInstance onOffscreenTextureInstance:(LAUTextureInstance *)destTextureInstance commandBuffer:(id<MTLCommandBuffer>)commandBuffer
 {
     // Check dimensions of the source texture instance
-    GLfloat width = srcTextureInstance->textureWidth;
-    GLfloat height = srcTextureInstance->textureHeight;
-    
+    float width = srcTextureInstance.textureWidth;
+    float height = srcTextureInstance.textureHeight;
+
     // Check if dimensions changed and load again if needed
-    if (destTextureInstance->textureWidth != width || destTextureInstance->textureHeight != height)
+    if (destTextureInstance.textureWidth != width || destTextureInstance.textureHeight != height)
     {
-        destTextureInstance->textureWidth = width;
-        destTextureInstance->textureHeight = height;
-        
+        destTextureInstance.textureWidth = width;
+        destTextureInstance.textureHeight = height;
+
         // Load offscreen texture instance
         [self loadOffscreenTextureInstance:destTextureInstance];
-        
-        // Set Frame uniform
-        glUniform1i(_blurFilterUniforms.FragTextureData, 0);
     }
-    
-    if (!destTextureInstance->framebuffer)
+
+    if (!destTextureInstance.renderPassDescriptor || !destTextureInstance.texture)
     {
-        Log(@"Invalid offscreen texture instance framebuffer. I am just going to bailout.");
+        Log(@"Invalid offscreen texture instance render target. I am just going to bailout.");
         return;
     }
-    
-    // Bind the offscreen framebuffer
-    glBindFramebuffer(GL_FRAMEBUFFER, destTextureInstance->framebuffer);
-    
-    // Set the view port to the entire view
-    glViewport( 0, 0, destTextureInstance->textureWidth, destTextureInstance->textureHeight);
-    
-    // Bind the src texture
-    glBindTexture(srcTextureInstance->textureTarget, srcTextureInstance->textureName);
-    
-    // Set texture parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    
+
     // Set the filter split-pass direction vector
     [self setFilterSplitPassDirectionVectorForTextureInstance:destTextureInstance];
-    
-    // Bind VAO
-    glBindVertexArrayOES(destTextureInstance->vertexArray);
-    
+
+    // Encode the pass, the destination texture is the render target
+    id<MTLRenderCommandEncoder> renderCommandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:destTextureInstance.renderPassDescriptor];
+    renderCommandEncoder.label = @"Offscreen Blur Filter Pass";
+
+    // Set the view port to the entire destination texture.
+    // The texture dimensions are used, and not the instance ones, so that the viewport
+    // always covers every pixel of the render target
+    [renderCommandEncoder setViewport:(MTLViewport){0.0, 0.0, (double)destTextureInstance.texture.width, (double)destTextureInstance.texture.height, 0.0, 1.0}];
+
+    // Use the blur filter render pipeline state
+    [renderCommandEncoder setRenderPipelineState:_blurFilterPipelineState];
+
+    // Bind the geometry and the filter arguments
+    [renderCommandEncoder setVertexBuffer:destTextureInstance.vertexBuffer offset:0 atIndex:BufferIndexVertices];
+    [renderCommandEncoder setFragmentBytes:&_filterUniforms length:sizeof(_filterUniforms) atIndex:BufferIndexFilterUniforms];
+
+    // Bind the src texture
+    [renderCommandEncoder setFragmentTexture:srcTextureInstance.texture atIndex:TextureIndexSource];
+    [renderCommandEncoder setFragmentSamplerState:_samplerState atIndex:SamplerIndexSource];
+
     // Draw the instance
-    glDrawArrays(destTextureInstance->primitiveType, 0, destTextureInstance->vertexCount);
+    [renderCommandEncoder drawPrimitives:destTextureInstance.primitiveType vertexStart:0 vertexCount:destTextureInstance.vertexCount];
+
+    [renderCommandEncoder endEncoding];
 }
 
 #pragma mark -
 #pragma mark Onscreen rendering
 
-- (GLuint)createOnscreenFramebufferForLayer:(CAEAGLLayer *)layer
+- (void)updateDrawableSize
 {
-    // Delete potential previously created framebuffer
-    if(_onscreenFramebuffer)
+    CGSize boundsSize = self.bounds.size;
+
+    NSInteger drawableWidth = (NSInteger)roundf(boundsSize.width * self.contentsScale);
+    NSInteger drawableHeight = (NSInteger)roundf(boundsSize.height * self.contentsScale);
+
+    if (drawableWidth <= 0 || drawableHeight <= 0)
     {
-        glDeleteRenderbuffers(1, &_onscreenColorRenderbuffer);
-        glDeleteFramebuffers(1, &_onscreenFramebuffer);
+        return;
     }
-    
-    // Allocating on-screen color renderbuffer memory
-    glGenRenderbuffers(1, &_onscreenColorRenderbuffer);
-    glBindRenderbuffer(GL_RENDERBUFFER, _onscreenColorRenderbuffer);
-    [_oglContext renderbufferStorage:GL_RENDERBUFFER fromDrawable:layer];
-    
-    // Create the on-screen framebuffer object (FBO).
-    glGenFramebuffers(1, &_onscreenFramebuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, _onscreenFramebuffer);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, _onscreenColorRenderbuffer);
-    
-    if (!checkFramebufferStatusComplete())
+
+    if (drawableWidth == _onscreenDrawableWidth && drawableHeight == _onscreenDrawableHeight)
     {
-        [self unloadProgram];
-        return NO;
+        return;
     }
-    
-    glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &_onscreenColorRenderbufferWidth);
-    glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &_onscreenColorRenderbufferHeight);
-    
-    return _onscreenFramebuffer;
+
+    _onscreenDrawableWidth = drawableWidth;
+    _onscreenDrawableHeight = drawableHeight;
+
+    self.drawableSize = CGSizeMake(drawableWidth, drawableHeight);
+
+    // The onscreen quad texture coordinates are aspect-fit against the drawable
+    // dimensions, invalidate it so it is loaded again on the next draw call
+    _onscreenTextureInstance.textureWidth = 0;
+    _onscreenTextureInstance.textureHeight = 0;
+
+    // The snapshot texture has to match the new drawable dimensions
+    _onscreenSnapshotTexture = nil;
 }
 
-- (CGPoint)onscreenTextureCoordinatesOffsetsForTextureInstance:(TextureInstance_t *)textureInstance
+- (id<MTLTexture>)onscreenSnapshotTexture
+{
+    if (!_onscreenSnapshotTexture && _onscreenDrawableWidth > 0 && _onscreenDrawableHeight > 0)
+    {
+        // Shared storage so the contents can be read back with getBytes:
+        _onscreenSnapshotTexture = loadRenderTargetTexture(self.device, _onscreenDrawableWidth, _onscreenDrawableHeight, self.pixelFormat, MTLStorageModeShared);
+    }
+
+    return _onscreenSnapshotTexture;
+}
+
+- (CGPoint)onscreenTextureCoordinatesOffsetsForTextureInstance:(LAUTextureInstance *)textureInstance
 {
     // We assume the pixelBuffer is landscape, rotated 90 degrees anti-clockwise
     // So:
@@ -779,51 +801,51 @@
     // 2. Rotate 90 degrees clockwise by mapping the texture coordinates
     // The pixel bufferr (and texture) remain unchanged.
     // We only flip the viewHeight/viewWidth and map the texture to the appropriate vertices so it is rotated.
-    _onscreenTextureInstance.textureWidth = (GLfloat)textureInstance->textureWidth;
-    _onscreenTextureInstance.textureHeight = (GLfloat)textureInstance->textureHeight;
-    
+    _onscreenTextureInstance.textureWidth = textureInstance.textureWidth;
+    _onscreenTextureInstance.textureHeight = textureInstance.textureHeight;
+
     // Ratio of view versus. texture
-    GLfloat viewRatio = ((GLfloat)_onscreenColorRenderbufferHeight) / ((GLfloat)_onscreenColorRenderbufferWidth);
-    GLfloat textureRatio = _onscreenTextureInstance.textureWidth / _onscreenTextureInstance.textureHeight;
-    
+    float viewRatio = ((float)_onscreenDrawableHeight) / ((float)_onscreenDrawableWidth);
+    float textureRatio = _onscreenTextureInstance.textureWidth / _onscreenTextureInstance.textureHeight;
+
     // Change S (T=1) if texture ratio <= view ratio
     // Change T (S=1) if texture ration > view ratio
     BOOL changeT = textureRatio > viewRatio; // changeT = !changeS
-    
+
     // Calculate the texture scale factor
-    GLfloat textureScale = 1.0;
-    
+    float textureScale = 1.0;
+
     // Change T, means we need to check view height vs. texture height
     // T is going to map [0,1]
     if (changeT) {
-        textureScale = ((GLfloat)_onscreenColorRenderbufferWidth) / _onscreenTextureInstance.textureHeight;
+        textureScale = ((float)_onscreenDrawableWidth) / _onscreenTextureInstance.textureHeight;
     }
     // Change S, means we need to check view width vs. texture width
     // S is going to map [0,1]
     else {
-        textureScale = ((GLfloat)_onscreenColorRenderbufferHeight) / _onscreenTextureInstance.textureWidth;
+        textureScale = ((float)_onscreenDrawableHeight) / _onscreenTextureInstance.textureWidth;
     }
-    
+
     // Calculate texture scaled dimensions
-    GLfloat _scaledTextureHeight = _onscreenTextureInstance.textureHeight * textureScale;
-    GLfloat _scaledTextureWidth = _onscreenTextureInstance.textureWidth * textureScale;
-    
+    float _scaledTextureHeight = _onscreenTextureInstance.textureHeight * textureScale;
+    float _scaledTextureWidth = _onscreenTextureInstance.textureWidth * textureScale;
+
     // Calculate texture coordinates S and D deltas
-    GLfloat _deltaTextureCoordinateS = (_scaledTextureWidth-((GLfloat)_onscreenColorRenderbufferHeight)) / _scaledTextureWidth / 2.0;
-    GLfloat _deltaTextureCoordinateT = (_scaledTextureHeight-((GLfloat)_onscreenColorRenderbufferWidth)) / _scaledTextureHeight / 2.0;
-    
+    float _deltaTextureCoordinateS = (_scaledTextureWidth-((float)_onscreenDrawableHeight)) / _scaledTextureWidth / 2.0;
+    float _deltaTextureCoordinateT = (_scaledTextureHeight-((float)_onscreenDrawableWidth)) / _scaledTextureHeight / 2.0;
+
     // Update the texture coordinates
     return CGPointMake(_deltaTextureCoordinateS, _deltaTextureCoordinateT);
 }
 
-- (void)loadOnscreenTextureInstanceFor:(TextureInstance_t *)textureInstance
+- (void)loadOnscreenTextureInstanceFor:(LAUTextureInstance *)textureInstance
 {
     // Use triangle strip
-    _onscreenTextureInstance.primitiveType = GL_TRIANGLE_STRIP;
-    
+    _onscreenTextureInstance.primitiveType = MTLPrimitiveTypeTriangleStrip;
+
     // Calculate the texture coordinates offsets for the input textureInstance
     CGPoint textureCoordinatesOffsets = [self onscreenTextureCoordinatesOffsetsForTextureInstance:textureInstance];
-    
+
     // Vertex data
     VertexData_t vertexData[] = {
         {
@@ -843,74 +865,53 @@
             {0.0f + textureCoordinatesOffsets.x,  0.0f + textureCoordinatesOffsets.y}
         }
     };
-    
-    static const GLsizei stride = sizeof(VertexData_t);
+
     _onscreenTextureInstance.vertexCount = 4;
-    
-    // Vertex Array Object
-    glGenVertexArraysOES(1, &_onscreenTextureInstance.vertexArray);
-    glBindVertexArrayOES(_onscreenTextureInstance.vertexArray);
-    
-    // VBO
-    glGenBuffers(1, &_onscreenTextureInstance.vertexBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, _onscreenTextureInstance.vertexBuffer);
-    glBufferData(GL_ARRAY_BUFFER, _onscreenTextureInstance.vertexCount * stride, vertexData, GL_STATIC_DRAW);
-    
-    // Position
-    glEnableVertexAttribArray(_defaultAttributes.VertPosition);
-    glVertexAttribPointer(_defaultAttributes.VertPosition, 2, GL_FLOAT, GL_FALSE, stride, (GLvoid*)offsetof(VertexData_t, position));
-    
-    // TextureCoordinate
-    glEnableVertexAttribArray(_defaultAttributes.VertTextureCoordinate);
-    glVertexAttribPointer(_defaultAttributes.VertTextureCoordinate, 2, GL_FLOAT, GL_FALSE, stride, (GLvoid*)offsetof(VertexData_t, textureCoordinate));
-    
-    // Unbind VBO + VAO
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArrayOES(0);
+    _onscreenTextureInstance.vertexBuffer = [self.device newBufferWithBytes:vertexData
+                                                                     length:sizeof(vertexData)
+                                                                    options:MTLResourceStorageModeShared];
 }
 
-- (void)drawOnscreenOffscreenTextureInstance:(TextureInstance_t *)offscreenTextureInstance
+- (void)drawOnscreenOffscreenTextureInstance:(LAUTextureInstance *)offscreenTextureInstance intoTexture:(id<MTLTexture>)texture commandBuffer:(id<MTLCommandBuffer>)commandBuffer
 {
-    if (!_onscreenFramebuffer)
+    if (!texture)
     {
-        Log(@"Invalid onscreen framebuffer. I am just going to bailout.");
+        Log(@"Invalid onscreen render target. I am just going to bailout.");
         return;
     }
-    
-    // Bind the offscreen framebuffer
-    glBindFramebuffer(GL_FRAMEBUFFER, _onscreenFramebuffer);
-    
-    // Set the view port to the entire view
-    glViewport( 0, 0, _onscreenColorRenderbufferWidth, _onscreenColorRenderbufferHeight);
-    
-    // Bind the texture
-    glBindTexture(offscreenTextureInstance->textureTarget, offscreenTextureInstance->textureName);
-    
-    // Set texture parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    
+
     // Check dimensions of the pixelBuffer
-    GLfloat width = offscreenTextureInstance->textureWidth;
-    GLfloat height = offscreenTextureInstance->textureHeight;
-    
+    float width = offscreenTextureInstance.textureWidth;
+    float height = offscreenTextureInstance.textureHeight;
+
     // Check if dimensions changed and load again if needed
     if (_onscreenTextureInstance.textureWidth != width || _onscreenTextureInstance.textureHeight != height)
     {
         // Load texture instance
         [self loadOnscreenTextureInstanceFor:offscreenTextureInstance];
-        
-        // Set Frame uniform
-        glUniform1i(_defaultUniforms.FragTextureData, 0);
     }
-    
-    // Bind VAO
-    glBindVertexArrayOES(_onscreenTextureInstance.vertexArray);
-    
+
+    // Encode the pass, the drawable (or the snapshot texture) is the render target
+    id<MTLRenderCommandEncoder> renderCommandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:loadRenderPassDescriptor(texture)];
+    renderCommandEncoder.label = @"Onscreen Pass";
+
+    // Set the view port to the entire view
+    [renderCommandEncoder setViewport:(MTLViewport){0.0, 0.0, (double)_onscreenDrawableWidth, (double)_onscreenDrawableHeight, 0.0, 1.0}];
+
+    // Filtering is disabled for the final onscreen rendering
+    [renderCommandEncoder setRenderPipelineState:_defaultPipelineState];
+
+    // Bind the geometry
+    [renderCommandEncoder setVertexBuffer:_onscreenTextureInstance.vertexBuffer offset:0 atIndex:BufferIndexVertices];
+
+    // Bind the texture
+    [renderCommandEncoder setFragmentTexture:offscreenTextureInstance.texture atIndex:TextureIndexSource];
+    [renderCommandEncoder setFragmentSamplerState:_samplerState atIndex:SamplerIndexSource];
+
     // Draw the instance
-    glDrawArrays(_onscreenTextureInstance.primitiveType, 0, _onscreenTextureInstance.vertexCount);
+    [renderCommandEncoder drawPrimitives:_onscreenTextureInstance.primitiveType vertexStart:0 vertexCount:_onscreenTextureInstance.vertexCount];
+
+    [renderCommandEncoder endEncoding];
 }
 
 #pragma mark -
@@ -919,26 +920,26 @@
 - (UIImage *)imageFromOnscreenFramebuffer
 {
     CGRect bounds = self.bounds;
-    
+
     NSAssert(CGRectGetWidth(bounds) > 0, @"Layer %@ width is zero", self);
     NSAssert(CGRectGetHeight(bounds) > 0, @"Layer %@ height is zero", self);
-    
+
     UIGraphicsBeginImageContextWithOptions(bounds.size, YES, 0);
-    
+
     CGContextRef context = UIGraphicsGetCurrentContext();
-    
+
     NSAssert(context != NULL, @"Invalid context for layer %@", self);
-    
+
     CGContextSaveGState(context);
-    
+
     [self renderInContext:context andRedrawPixelBuffer:NO];
-    
+
     CGContextRestoreGState(context);
-    
+
     UIImage * imageFromOnscreenFramebuffer = UIGraphicsGetImageFromCurrentImageContext();
-    
+
     UIGraphicsEndImageContext();
-    
+
     return imageFromOnscreenFramebuffer;
 }
 
@@ -951,10 +952,10 @@
         _onscreenSnapshotImageSublayer.contentsScale = 2;
         _onscreenSnapshotImageSublayer.anchorPoint = CGPointMake(0, 0);
         _onscreenSnapshotImageSublayer.backgroundColor = self.backgroundColor;
-        
+
         _onscreenSnapshotImageSublayer.contents = (__bridge id)[self imageFromOnscreenFramebuffer].CGImage;
         _onscreenSnapshotImageSublayer.opacity = 1.0;
-        
+
         [self addSublayer:_onscreenSnapshotImageSublayer];
     }
 }
@@ -968,7 +969,7 @@
             [_onscreenSnapshotImageSublayer removeFromSuperlayer];
             _onscreenSnapshotImageSublayer = nil;
         }];
-        
+
         [CATransaction setAnimationDuration:0.25f];
         [CATransaction setAnimationTimingFunction:[CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseIn]];
 
@@ -985,7 +986,7 @@
 {
     *red = *green = *blue = 0.0;
     *alpha = 1.0;
-    
+
     if (CGColorGetNumberOfComponents(color) == 4)
     {
         const CGFloat * colorComponents = CGColorGetComponents(color);
@@ -998,173 +999,175 @@
 
 - (void)drawColor:(CGColorRef)color
 {
-    if (_onscreenFramebuffer == 0)
+    if (!_commandQueue)
     {
-        Log(@"CameraOGLPreviewView: OpenGL framebuffer not initialized.");
+        Log(@"LAUCaptureVideoPreviewLayer: Metal command queue not initialized.");
         return;
     }
-    
-    EAGLContext * oglContext = [EAGLContext currentContext];
-    if (oglContext != _oglContext)
+
+    id<CAMetalDrawable> drawable = [self nextDrawable];
+
+    if (!drawable)
     {
-        if (![EAGLContext setCurrentContext:_oglContext])
-        {
-            @throw [NSException exceptionWithName:NSInternalInconsistencyException reason:@"CameraOGLPreviewView: Problem with OpenGL context" userInfo:nil];
-            return;
-        }
+        Log(@"LAUCaptureVideoPreviewLayer: No drawable available.");
+        return;
     }
-    
+
     // Use clear color with the argument color
     CGFloat red, green, blue, alpha;
     [self getCGColor:color componentsRed:&red green:&green blue:&blue alpha:&alpha];
-    
-    glClearColor(red, green, blue, alpha);
-    glClear(GL_COLOR_BUFFER_BIT);
-    
-    [_oglContext presentRenderbuffer:GL_RENDERBUFFER];
-    
-    if (oglContext != _oglContext)
-    {
-        [EAGLContext setCurrentContext:oglContext];
-    }
+
+    MTLRenderPassDescriptor * renderPassDescriptor = loadRenderPassDescriptor(drawable.texture);
+    renderPassDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
+    renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(red, green, blue, alpha);
+
+    id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
+    id<MTLRenderCommandEncoder> renderCommandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
+    renderCommandEncoder.label = @"Clear Pass";
+    [renderCommandEncoder endEncoding];
+
+    [commandBuffer presentDrawable:drawable];
+    [commandBuffer commit];
 }
 
 - (void)drawPixelBuffer:(CADisplayLink *)aDisplayLink
 {
     PrettyLog;
-    
+
     CMSampleBufferRef sampleBuffer = self.internal.sampleBuffer;
-    
+
     if (sampleBuffer)
     {
-        Log(@"*** CameraOGLPreviewView: sampleBuffer is OK (frame duration %fs)", aDisplayLink.duration);
-        
+        Log(@"*** LAUCaptureVideoPreviewLayer: sampleBuffer is OK (frame duration %fs)", aDisplayLink.duration);
+
         // New pixelBuffer available to be rendered ?
         CVPixelBufferRef pixelBuffer = (CVPixelBufferRef)CFRetain(CMSampleBufferGetImageBuffer(sampleBuffer));
-        
+
         if (!pixelBuffer)
         {
-            Log(@"*** CameraOGLPreviewView: pixelBuffer is nil");
+            Log(@"*** LAUCaptureVideoPreviewLayer: pixelBuffer is nil");
             return;
         }
-        
+
         // Release old pixelBuffer texture if it exists
         if (_pixelBufferTexture)
         {
             CFRelease(_pixelBufferTexture);
             _pixelBufferTexture = NULL;
         }
-        
+
         // Check dimensions of the pixelBuffer
-        GLfloat width = (GLfloat)CVPixelBufferGetWidth(pixelBuffer);
-        GLfloat height = (GLfloat)CVPixelBufferGetHeight(pixelBuffer);
-        
-        // Get the OpenGL texture
-        _pixelBufferTexture = [self oglTextureFromPixelBuffer:pixelBuffer];
-        
+        float width = (float)CVPixelBufferGetWidth(pixelBuffer);
+        float height = (float)CVPixelBufferGetHeight(pixelBuffer);
+
+        // Get the Metal texture
+        _pixelBufferTexture = [self metalTextureFromPixelBuffer:pixelBuffer];
+
+        CFRelease(pixelBuffer);
+
+        if (!_pixelBufferTexture)
+        {
+            return;
+        }
+
         // Create a temporary offscreen texture instance wrapping the pixelBuffer
+        _pixelBufferTextureNativeWidth = width;
+        _pixelBufferTextureNativeHeight = height;
         _pixelBufferTextureInstance.textureWidth = width;
         _pixelBufferTextureInstance.textureHeight = height;
-        _pixelBufferTextureInstance.textureTarget = CVOpenGLESTextureGetTarget(_pixelBufferTexture);
-        _pixelBufferTextureInstance.textureName = CVOpenGLESTextureGetName(_pixelBufferTexture);
-        
-        CFRelease(pixelBuffer);
+        _pixelBufferTextureInstance.texture = CVMetalTextureGetTexture(_pixelBufferTexture);
     }
     else if (_pixelBufferTexture)
     {
-        Log(@"*** CameraOGLPreviewView: re-using last pixelBuffer texture (frame duration %fs)", aDisplayLink.duration);
+        Log(@"*** LAUCaptureVideoPreviewLayer: re-using last pixelBuffer texture (frame duration %fs)", aDisplayLink.duration);
     }
     else
     {
-        Log(@"*** CameraOGLPreviewView: sampleBuffer and pixelBufferTexture are NULL. NOT going to render. (frame duration %fs)", aDisplayLink.duration);
+        Log(@"*** LAUCaptureVideoPreviewLayer: sampleBuffer and pixelBufferTexture are NULL. NOT going to render. (frame duration %fs)", aDisplayLink.duration);
         return;
     }
-    
-    EAGLContext * oglContext = [EAGLContext currentContext];
-    if (oglContext != _oglContext)
+
+    if (!_defaultPipelineState || !_blurFilterPipelineState)
     {
-        if (![EAGLContext setCurrentContext:_oglContext])
-        {
-            @throw [NSException exceptionWithName:NSInternalInconsistencyException reason:@"CameraOGLPreviewView: Problem with OpenGL context" userInfo:nil];
-            return;
-        }
+        Log(@"*** LAUCaptureVideoPreviewLayer: render pipeline states are not loaded yet. NOT going to render.");
+        return;
     }
-    
-    // Avoid loading previous buffer contents
-    glClear(GL_COLOR_BUFFER_BIT);
-    
+
+    id<CAMetalDrawable> drawable = [self nextDrawable];
+
+    if (!drawable)
+    {
+        Log(@"*** LAUCaptureVideoPreviewLayer: no drawable available. NOT going to render.");
+        return;
+    }
+
+    id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
+    commandBuffer.label = @"LAUCaptureVideoPreviewLayer Frame";
+
+    // Texture instance used by the final onscreen pass
+    LAUTextureInstance * onscreenSourceTextureInstance = _pixelBufferTextureInstance;
+
     // Only filter if filter intensity is greater than 0
     if (_filterIntensity > 0)
     {
-        // Use the blur filter program
-        glUseProgram(_blurFilterProgram);
-        
-        // Update any uniform value that changed since last frame
-        [self updateBlurFilterProgramUniforms];
-        
+        // Update any filter argument that changed since last frame
+        [self updateBlurFilterUniforms];
+
         // Downsample pixel buffer texture dimensions
         [self scaleDownPixelBufferTextureInstanceDimensions];
-        
+
         // First Draw the pixel buffer in an offscreen texture instance (this is a special step)
-        [self drawOffscreenTextureInstance:&_pixelBufferTextureInstance onOffscreenTextureInstance:&_offscreenTextureInstances[0]];
-        
+        [self drawOffscreenTextureInstance:_pixelBufferTextureInstance onOffscreenTextureInstance:_offscreenTextureInstances[0] commandBuffer:commandBuffer];
+
         // Draw the offscreen texture instances and keep applying the filter (ping, pong, ping, pong)
         // Because we did already drew once, the number of draw calls left = 2 * multiple-pass-count - 1
         for (int p=1; p<(2*_filterMultiplePassCount); ++p)
         {
             // Draw split-pass (offscreen)
-            [self drawOffscreenTextureInstance:&_offscreenTextureInstances[(p+1)%2] onOffscreenTextureInstance:&_offscreenTextureInstances[p%2]];
+            [self drawOffscreenTextureInstance:_offscreenTextureInstances[(p+1)%2] onOffscreenTextureInstance:_offscreenTextureInstances[p%2] commandBuffer:commandBuffer];
         }
-        
-        // Disabled filtering for final onscreen rendering
-        glUseProgram(_defaultProgram);
-        
-        // Draw (onscreen)
-        [self drawOnscreenOffscreenTextureInstance:&_offscreenTextureInstances[1]];
-    }
-    else
-    {
-        // Draw (onscreen)
-        [self drawOnscreenOffscreenTextureInstance:&_pixelBufferTextureInstance];
-    }
-    
-    [_oglContext presentRenderbuffer:GL_RENDERBUFFER];
-    
-    glBindTexture(_pixelBufferTextureInstance.textureTarget, 0);
-    glBindTexture(GL_TEXTURE_2D, 0);
 
-    if (oglContext != _oglContext)
-    {
-        [EAGLContext setCurrentContext:oglContext];
+        onscreenSourceTextureInstance = _offscreenTextureInstances[1];
     }
+
+    // Keep a reference for renderInContext:andRedrawPixelBuffer:
+    _onscreenSourceTextureInstance = onscreenSourceTextureInstance;
+
+    // Draw (onscreen)
+    [self drawOnscreenOffscreenTextureInstance:onscreenSourceTextureInstance intoTexture:drawable.texture commandBuffer:commandBuffer];
+
+    [commandBuffer presentDrawable:drawable];
+    [commandBuffer commit];
 }
 
-- (void)updateBlurFilterProgramUniforms
+- (void)updateBlurFilterUniforms
 {
     if (_filterIntensityNeedsUpdate)
     {
         FilterKernel_t filterKernel = _filterKernelArray[_filterKernelIndex];
-        
+
 #if FilterBilinearTextureSamplingEnabled
-        glUniform1i(_blurFilterUniforms.FilterKernelSamples, filterKernel.samples);
-        glUniform1fv(_blurFilterUniforms.VertFilterKernelOffsets, filterKernel.samples, filterKernel.offsets);
-        glUniform1fv(_blurFilterUniforms.FragFilterKernelWeights, filterKernel.samples, filterKernel.weights);
+        size_t samples = MIN((size_t)filterKernel.samples, (size_t)kFilterKernelMaxSamples);
+        _filterUniforms.filterKernelSamples = (int)samples;
+        memcpy(_filterUniforms.filterKernelOffsets, filterKernel.offsets, samples * sizeof(float));
+        memcpy(_filterUniforms.filterKernelWeights, filterKernel.weights, samples * sizeof(float));
 #else
-        glUniform1i(_blurFilterUniforms.FragFilterKernelRadius, filterKernel.radius);
-        glUniform1i(_blurFilterUniforms.FragFilterKernelSize, filterKernel.size);
-        glUniform1fv(_blurFilterUniforms.FragFilterKernelWeights, filterKernel.size, filterKernel.weights);
+        size_t size = MIN((size_t)filterKernel.size, (size_t)kFilterKernelMaxWeights);
+        _filterUniforms.filterKernelRadius = (int)filterKernel.radius;
+        _filterUniforms.filterKernelSize = (int)size;
+        memcpy(_filterUniforms.filterKernelWeights, filterKernel.weights, size * sizeof(float));
 #endif
-        
+
         _filterIntensityNeedsUpdate = NO;
     }
-    
+
 #if FilterBoundsEnabled
     if (_filterBoundsNeedsUpdate)
     {
-        glUniform4fv(_blurFilterUniforms.FragFilterBounds, 1, _filterBounds);
+        _filterUniforms.filterBounds = simd_make_float4(_filterBounds[0], _filterBounds[1], _filterBounds[2], _filterBounds[3]);
         _filterBoundsNeedsUpdate = NO;
     }
-    
+
 #endif
 }
 
@@ -1174,30 +1177,30 @@
 - (void)setFilterIntensity:(float)intensity
 {
     float oldIntensity = _filterIntensity;
-    
-    // Bail out if the program hasn't been loaded yet
-    if (!_blurFilterProgram)
+
+    // Bail out if the render pipeline state hasn't been loaded yet
+    if (!_blurFilterPipelineState)
     {
         return;
     }
-    
+
     // Load filter kernel (will do nothing if it's already loaded)
     [self loadFilter];
-    
+
     // Clamp intensity between [0,1] range
     float newIntensity =  MAX(0, MIN(1, intensity));
-    
+
     // Assign the intensity value
     _filterIntensity = newIntensity;
-    
+
     // Map intensity to a integer kernel index
     size_t mappedIndex = (size_t)roundf(newIntensity * ((float)(_filterKernelCount-1)));
-    
+
     // Assign the mapped index
     _filterKernelIndex =  MAX(0, MIN(_filterKernelCount-1, mappedIndex));
-    
+
     _filterIntensityNeedsUpdate = YES;
-    
+
     if (newIntensity > 0.0 && oldIntensity == 0.0)
     {
         [self removeAVCaptureVideoPreviewSublayer];
@@ -1215,17 +1218,17 @@
         [self setFilterIntensity:intensity];
         return;
     }
-    
+
     // Assign target filter intensity
     _filterIntensityTransitionTarget = intensity;
-    
+
     // Define timer step based on the number of kernels available
     float const filterIntensityTransitionStep = 1.0f / _filterKernelCount;
-    
+
     _filterIntensityTransitionTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_main_queue());
     dispatch_source_set_timer(_filterIntensityTransitionTimer, DISPATCH_TIME_NOW, (1.0f/60.0f) * NSEC_PER_SEC, 0.0 * NSEC_PER_SEC);
     dispatch_source_set_event_handler(_filterIntensityTransitionTimer, ^{
-        
+
         if (_filterIntensity != _filterIntensityTransitionTarget)
         {
             if (_filterIntensity < _filterIntensityTransitionTarget)
@@ -1255,9 +1258,9 @@
         {
             dispatch_source_cancel(_filterIntensityTransitionTimer);
         }
-        
+
     });
-    
+
     dispatch_resume(_filterIntensityTransitionTimer);
 }
 
@@ -1267,16 +1270,16 @@
 #if FilterBoundsEnabled
 - (void)setFilterBoundsRect:(CGRect)filterBoundsRect
 {
-    GLfloat xMin = filterBoundsRect.origin.x;
-    GLfloat xMax = xMin + filterBoundsRect.size.width;
-    GLfloat yMin = filterBoundsRect.origin.y;
-    GLfloat yMax = yMin + filterBoundsRect.size.height;
-    
+    float xMin = filterBoundsRect.origin.x;
+    float xMax = xMin + filterBoundsRect.size.width;
+    float yMin = filterBoundsRect.origin.y;
+    float yMax = yMin + filterBoundsRect.size.height;
+
     // Bounds within the texture that are filtered [xMin, yMin, xMax, yMax]
     // The textureCoordinates mapping rotate the texture 90 degrees clockwise
     // We need to flip x/y in textureFilterBounds to work with the rotation
-    GLfloat filterBounds[4] = { yMin, 1.0 - xMax, yMax, 1.0 - xMin };
-    memcpy(_filterBounds, filterBounds, 4*sizeof(GLfloat));
+    float filterBounds[4] = { yMin, 1.0 - xMax, yMax, 1.0 - xMin };
+    memcpy(_filterBounds, filterBounds, 4*sizeof(float));
     _filterBoundsNeedsUpdate = YES;
 }
 #endif
@@ -1287,20 +1290,20 @@
 void createFilterKernel(int kernelIndex, FilterKernel_t * filterKernel)
 {
 #if FilterBilinearTextureSamplingEnabled
-    GLuint filterSamples = btsGaussianFilterSamplesForKernelIndex(kernelIndex);
-    GLuint filterRadius = btsGaussianFilterRadiusForKernelIndex(kernelIndex);
-    GLfloat filterSigma = btsGaussianFilterSigmaForKernelIndex(kernelIndex);
-    GLfloat filterStep = btsGaussianFilterStepForKernelIndex(kernelIndex);
-    
+    unsigned int filterSamples = btsGaussianFilterSamplesForKernelIndex(kernelIndex);
+    unsigned int filterRadius = btsGaussianFilterRadiusForKernelIndex(kernelIndex);
+    float filterSigma = btsGaussianFilterSigmaForKernelIndex(kernelIndex);
+    float filterStep = btsGaussianFilterStepForKernelIndex(kernelIndex);
+
     // Create 1D kernel
-    GLfloat * filterWeights = calloc(filterSamples, sizeof(GLfloat)); // float
-    GLfloat * filterOffsets = calloc(filterSamples, sizeof(GLfloat)); // float
+    float * filterWeights = calloc(filterSamples, sizeof(float)); // float
+    float * filterOffsets = calloc(filterSamples, sizeof(float)); // float
     for (int sampleIndex=0; sampleIndex<filterSamples; ++sampleIndex)
     {
         filterWeights[sampleIndex] = btsGaussianFilterWeightForIndexes(kernelIndex, sampleIndex);
         filterOffsets[sampleIndex] = btsGaussianFilterOffsetForIndexes(kernelIndex, sampleIndex);
     }
-    
+
     // Log kernel
     printf("kernel (step = %f, radius = %u, sigma = %f, samples = %u) [", filterStep, filterRadius, filterSigma, filterSamples);
     for (int i = 0; i<filterSamples; ++i)
@@ -1308,21 +1311,21 @@ void createFilterKernel(int kernelIndex, FilterKernel_t * filterKernel)
         printf(" (%f, %f) ", filterWeights[i], filterOffsets[i]);
     }
     printf("]\n");
-    
+
     filterKernel->radius = filterRadius;
     filterKernel->samples = filterSamples;
     filterKernel->weights = filterWeights;
     filterKernel->offsets = filterOffsets;
-    
+
 #else
-    
-    GLuint filterSize = dtsGaussianFilterSizeForKernelIndex(kernelIndex);
-    GLuint filterRadius = dtsGaussianFilterRadiusForKernelIndex(kernelIndex);
-    GLfloat filterSigma = dtsGaussianFilterSigmaForKernelIndex(kernelIndex);
-    GLfloat filterStep = dtsGaussianFilterStepForKernelIndex(kernelIndex);
-    
+
+    unsigned int filterSize = dtsGaussianFilterSizeForKernelIndex(kernelIndex);
+    unsigned int filterRadius = dtsGaussianFilterRadiusForKernelIndex(kernelIndex);
+    float filterSigma = dtsGaussianFilterSigmaForKernelIndex(kernelIndex);
+    float filterStep = dtsGaussianFilterStepForKernelIndex(kernelIndex);
+
     // Create 1D kernel
-    GLfloat * filterWeights = calloc(filterSize, sizeof(GLfloat)); // float
+    float * filterWeights = calloc(filterSize, sizeof(float)); // float
     for (int weightIndex=0; weightIndex<filterSize; ++weightIndex)
     {
         filterWeights[weightIndex] = dtsGaussianFilterWeightForIndexes(kernelIndex, weightIndex);
@@ -1335,7 +1338,7 @@ void createFilterKernel(int kernelIndex, FilterKernel_t * filterKernel)
         printf(" %f ", filterWeights[i]);
     }
     printf("]\n");
-    
+
     filterKernel->radius = filterRadius;
     filterKernel->size = filterSize;
     filterKernel->weights = filterWeights;
@@ -1347,9 +1350,11 @@ void releaseFilterKernel(FilterKernel_t * filterKernel)
     filterKernel->size = 0;
     filterKernel->radius = 0;
     free(filterKernel->weights);
+    filterKernel->weights = NULL;
 
 #if FilterBilinearTextureSamplingEnabled
     free(filterKernel->offsets);
+    filterKernel->offsets = NULL;
 #endif
 }
 
@@ -1360,27 +1365,27 @@ void releaseFilterKernel(FilterKernel_t * filterKernel)
     {
         return;
     }
-    
+
     // Define how many filter kernels should be generated
     size_t filterKernelCount = gaussianFilterKernelCount();
     FilterKernel_t * filterKernelArray = (FilterKernel_t *)calloc(filterKernelCount, sizeof(FilterKernel_t));
-    
+
     // Create all filter kernels
     for (int i=0; i<filterKernelCount; ++i)
     {
         createFilterKernel(i, &filterKernelArray[i]);
     }
-    
+
     // Store in the TextureInstance
     _filterKernelCount = filterKernelCount;
     _filterKernelArray = filterKernelArray;
-    
+
     // Filter parameters
     _filterDownsamplingFactor = 4.0f;
     _filterMultiplePassCount = 2;
 }
 
-- (void)setFilterSplitPassDirectionVectorForTextureInstance:(TextureInstance_t *)textureInstance
+- (void)setFilterSplitPassDirectionVectorForTextureInstance:(LAUTextureInstance *)textureInstance
 {
     // Switch the previous vector
     if (_filterSplitPassDirectionVector[0] == 0)
@@ -1394,8 +1399,9 @@ void releaseFilterKernel(FilterKernel_t * filterKernel)
         _filterSplitPassDirectionVector[1] = 1;
     }
 
-    // Set the filter step uniform
-    glUniform2f(_blurFilterUniforms.FilterSplitPassDirectionVector, _filterSplitPassDirectionVector[0]/textureInstance->textureWidth, _filterSplitPassDirectionVector[1]/textureInstance->textureHeight);
+    // Set the filter step argument
+    _filterUniforms.filterSplitPassDirectionVector = simd_make_float2(_filterSplitPassDirectionVector[0]/textureInstance.textureWidth,
+                                                                     _filterSplitPassDirectionVector[1]/textureInstance.textureHeight);
 }
 
 @end

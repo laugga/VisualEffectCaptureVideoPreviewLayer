@@ -119,7 +119,7 @@
             _hijackedVideoDataOutputSampleBufferDelegate = currentVideoDataOutput.sampleBufferDelegate;
             _hijackedVideoDataOutputSampleBufferDelegateQueue = currentVideoDataOutput.sampleBufferCallbackQueue;
             
-            // we want BGRA, both CoreGraphics and OpenGL work well with 'BGRA'
+            // we want BGRA, both CoreGraphics and Metal work well with 'BGRA'
             NSDictionary * videoSettings = @{(id)kCVPixelBufferPixelFormatTypeKey:@(kCMPixelFormat_32BGRA)};
             [currentVideoDataOutput setVideoSettings:videoSettings];
             [currentVideoDataOutput setAlwaysDiscardsLateVideoFrames:YES]; // discard if the data output queue is blocked
@@ -190,7 +190,7 @@
 
 - (void)configureVideoDataOutput:(AVCaptureVideoDataOutput *)videoDataOutput
 {
-    // we want BGRA, both CoreGraphics and OpenGL work well with 'BGRA'
+    // we want BGRA, both CoreGraphics and Metal work well with 'BGRA'
     NSDictionary * videoSettings = @{(id)kCVPixelBufferPixelFormatTypeKey:@(kCMPixelFormat_32BGRA)};
     [videoDataOutput setVideoSettings:videoSettings];
     [videoDataOutput setAlwaysDiscardsLateVideoFrames:YES]; // discard if the data output queue is blocked

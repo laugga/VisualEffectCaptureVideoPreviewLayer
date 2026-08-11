@@ -31,6 +31,7 @@
 
 #import <AVFoundation/AVBase.h>
 #import <QuartzCore/QuartzCore.h>
+#import <QuartzCore/CAMetalLayer.h>
 #import <AVFoundation/AVCaptureSession.h>
 #import <AVFoundation/AVAnimation.h>
 
@@ -41,7 +42,7 @@
  @class LAUCaptureVideoPreviewLayer
  @abstract
  A CoreAnimation layer subclass for previewing the visual output of an AVCaptureSession.
- 
+
  @discussion
  An AVCaptureVideoPreviewLayer instance is a subclass of CALayer and is therefore
  suitable for insertion in a layer hierarchy as part of a graphical interface.
@@ -50,9 +51,13 @@
  property, one can influence how content is viewed relative to the layer bounds.  On
  some hardware configurations, the orientation of the layer can be manipulated using
  @"orientation" and @"mirrored".
+
+ The receiver renders the video frames with Metal. It is a CAMetalLayer subclass
+ and owns the MTLDevice, the command queue and the render pipeline states used to
+ draw and filter each frame.
  */
-NS_CLASS_AVAILABLE(10_7, 7_0) __TVOS_PROHIBITED
-@interface LAUCaptureVideoPreviewLayer : CAEAGLLayer
+__TVOS_PROHIBITED
+@interface LAUCaptureVideoPreviewLayer : CAMetalLayer
 {
 @private
     LAUCaptureVideoPreviewLayerInternal * _internal;
@@ -135,7 +140,7 @@ NS_CLASS_AVAILABLE(10_7, 7_0) __TVOS_PROHIBITED
  @result
  A newly initialized AVCaptureVideoPreviewLayer instance.
  */
-+ (instancetype)layerWithSessionWithNoConnection:(AVCaptureSession *)session NS_AVAILABLE(10_7, 8_0);
++ (instancetype)layerWithSessionWithNoConnection:(AVCaptureSession *)session;
 
 /*!
  @method initWithSessionWithNoConnection:
@@ -151,7 +156,7 @@ NS_CLASS_AVAILABLE(10_7, 7_0) __TVOS_PROHIBITED
  @result
  A newly initialized AVCaptureVideoPreviewLayer instance.
  */
-- (instancetype)initWithSessionWithNoConnection:(AVCaptureSession *)session NS_AVAILABLE(10_7, 8_0);
+- (instancetype)initWithSessionWithNoConnection:(AVCaptureSession *)session;
 
 /*!
  @property session
@@ -175,7 +180,7 @@ NS_CLASS_AVAILABLE(10_7, 7_0) __TVOS_PROHIBITED
  @discussion
  The session is retained by the preview layer.
  */
-- (void)setSessionWithNoConnection:(AVCaptureSession *)session NS_AVAILABLE(10_7, 8_0);
+- (void)setSessionWithNoConnection:(AVCaptureSession *)session;
 
 /*!
  @property connection
@@ -188,7 +193,7 @@ NS_CLASS_AVAILABLE(10_7, 7_0) __TVOS_PROHIBITED
  a connection is formed to the first eligible video AVCaptureInput.  If the receiver
  is detached from a session, the connection property becomes nil.
  */
-@property (nonatomic, readonly) AVCaptureConnection *connection NS_AVAILABLE(10_7, 6_0);
+@property (nonatomic, readonly) AVCaptureConnection *connection;
 
 /*!
  @property videoGravity
@@ -220,7 +225,7 @@ NS_CLASS_AVAILABLE(10_7, 7_0) __TVOS_PROHIBITED
  the coordinate space of the receiver to a point of interest in the coordinate space of the AVCaptureDevice providing
  input to the receiver.  The conversion takes frameSize and videoGravity into consideration.
  */
-- (CGPoint)captureDevicePointOfInterestForPoint:(CGPoint)pointInLayer NS_AVAILABLE_IOS(6_0);
+- (CGPoint)captureDevicePointOfInterestForPoint:(CGPoint)pointInLayer;
 
 /*!
  @method pointForCaptureDevicePointOfInterest:
@@ -240,7 +245,7 @@ NS_CLASS_AVAILABLE(10_7, 7_0) __TVOS_PROHIBITED
  the coordinate space of the AVCaptureDevice providing input to the coordinate space of the receiver.  The conversion
  takes frame size and videoGravity into consideration.
  */
-- (CGPoint)pointForCaptureDevicePointOfInterest:(CGPoint)captureDevicePointOfInterest NS_AVAILABLE_IOS(6_0);
+- (CGPoint)pointForCaptureDevicePointOfInterest:(CGPoint)captureDevicePointOfInterest;
 
 /*!
  @method metadataOutputRectOfInterestForRect:
@@ -260,7 +265,7 @@ NS_CLASS_AVAILABLE(10_7, 7_0) __TVOS_PROHIBITED
 	the coordinate space of the receiver to a rectangle of interest in the coordinate space of an AVCaptureMetadataOutput
 	whose AVCaptureDevice is providing input to the receiver.  The conversion takes frame size and videoGravity into consideration.
  */
-- (CGRect)metadataOutputRectOfInterestForRect:(CGRect)rectInLayerCoordinates NS_AVAILABLE_IOS(7_0);
+- (CGRect)metadataOutputRectOfInterestForRect:(CGRect)rectInLayerCoordinates;
 
 /*!
  @method rectForMetadataOutputRectOfInterest:
@@ -280,7 +285,7 @@ NS_CLASS_AVAILABLE(10_7, 7_0) __TVOS_PROHIBITED
 	the coordinate space of an AVCaptureMetadataOutput whose AVCaptureDevice is providing input to the coordinate space of the
 	receiver.  The conversion takes frame size and videoGravity into consideration.
  */
-- (CGRect)rectForMetadataOutputRectOfInterest:(CGRect)rectInMetadataOutputCoordinates NS_AVAILABLE_IOS(7_0);
+- (CGRect)rectForMetadataOutputRectOfInterest:(CGRect)rectInMetadataOutputCoordinates;
 
 /*!
  @method transformedMetadataObjectForMetadataObject:
@@ -301,7 +306,7 @@ NS_CLASS_AVAILABLE(10_7, 7_0) __TVOS_PROHIBITED
  the receiver.  The conversion takes orientation, mirroring, layer bounds and videoGravity into consideration.
  If the provided metadata object originates from an input source other than the preview layer's, nil will be returned.
  */
-- (AVMetadataObject *)transformedMetadataObjectForMetadataObject:(AVMetadataObject *)metadataObject NS_AVAILABLE_IOS(6_0);
+- (AVMetadataObject *)transformedMetadataObjectForMetadataObject:(AVMetadataObject *)metadataObject;
 
 #if TARGET_OS_IPHONE
 

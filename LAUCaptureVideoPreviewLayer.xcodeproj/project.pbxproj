@@ -22,6 +22,9 @@
 		38C06A241D92D50F009B1140 /* Samples.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 38C06A221D92D50F009B1140 /* Samples.xcassets */; };
 		38E03EE81D9130440055EFD3 /* LAUCaptureVideoPreviewLayerUtilities.h in Headers */ = {isa = PBXBuildFile; fileRef = 38E03EE61D9130440055EFD3 /* LAUCaptureVideoPreviewLayerUtilities.h */; };
 		38E03EE91D9130440055EFD3 /* LAUCaptureVideoPreviewLayerUtilities.m in Sources */ = {isa = PBXBuildFile; fileRef = 38E03EE71D9130440055EFD3 /* LAUCaptureVideoPreviewLayerUtilities.m */; };
+		3AF1000000000000000000B1 /* LAUCaptureVideoPreviewLayerShaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = 3AF1000000000000000000A1 /* LAUCaptureVideoPreviewLayerShaders.metal */; };
+		3AF1000000000000000000B2 /* LAUCaptureVideoPreviewLayerShaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = 3AF1000000000000000000A1 /* LAUCaptureVideoPreviewLayerShaders.metal */; };
+		3AF1000000000000000000B3 /* LAUCaptureVideoPreviewLayerShaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = 3AF1000000000000000000A1 /* LAUCaptureVideoPreviewLayerShaders.metal */; };
 		38E03F451D9136D90055EFD3 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 38E03F341D9136470055EFD3 /* AppDelegate.m */; };
 		38E03F461D9136D90055EFD3 /* PreviewViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 38E03F361D9136470055EFD3 /* PreviewViewController.m */; };
 		38E03F481D9136E00055EFD3 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 38E03F3B1D9136610055EFD3 /* LaunchScreen.storyboard */; };
@@ -78,6 +81,7 @@
 		38C06A221D92D50F009B1140 /* Samples.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Samples.xcassets; path = test/Samples.xcassets; sourceTree = SOURCE_ROOT; };
 		38E03EE61D9130440055EFD3 /* LAUCaptureVideoPreviewLayerUtilities.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LAUCaptureVideoPreviewLayerUtilities.h; sourceTree = "<group>"; };
 		38E03EE71D9130440055EFD3 /* LAUCaptureVideoPreviewLayerUtilities.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = LAUCaptureVideoPreviewLayerUtilities.m; sourceTree = "<group>"; };
+		3AF1000000000000000000A1 /* LAUCaptureVideoPreviewLayerShaders.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; path = LAUCaptureVideoPreviewLayerShaders.metal; sourceTree = "<group>"; };
 		38E03EFC1D9134C10055EFD3 /* UI Tests Application.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "UI Tests Application.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		38E03F311D9135A20055EFD3 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = test/LAUCaptureVideoPreviewLayerUITests/Info.plist; sourceTree = SOURCE_ROOT; };
 		38E03F331D9136470055EFD3 /* AppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = AppDelegate.h; path = test/LAUCaptureVideoPreviewLayerUITestsApplication/AppDelegate.h; sourceTree = SOURCE_ROOT; };
@@ -260,6 +264,7 @@
 				389C83941D9971F000467EB3 /* LAUCaptureVideoPreviewLayerGaussianFilterKernel.h */,
 				38E03EE61D9130440055EFD3 /* LAUCaptureVideoPreviewLayerUtilities.h */,
 				38E03EE71D9130440055EFD3 /* LAUCaptureVideoPreviewLayerUtilities.m */,
+				3AF1000000000000000000A1 /* LAUCaptureVideoPreviewLayerShaders.metal */,
 			);
 			name = Library;
 			path = lib;
@@ -464,6 +469,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3AF1000000000000000000B2 /* LAUCaptureVideoPreviewLayerShaders.metal in Sources */,
 				3807FF6B1DD20D9600C4FC1F /* LAUCaptureVideoPreviewLayerTests.m in Sources */,
 				38C06A191D918E7C009B1140 /* UIImage+Compare.m in Sources */,
 				3807FF6C1DD20D9900C4FC1F /* MockLAUCaptureVideoPreviewLayerInternal.m in Sources */,
@@ -474,6 +480,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3AF1000000000000000000B3 /* LAUCaptureVideoPreviewLayerShaders.metal in Sources */,
 				3807FF6E1DD20DA500C4FC1F /* MockLAUCaptureVideoPreviewLayerInternal.m in Sources */,
 				38E03F461D9136D90055EFD3 /* PreviewViewController.m in Sources */,
 				38C069EB1D91407F009B1140 /* PreviewView.m in Sources */,
@@ -486,6 +493,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3AF1000000000000000000B1 /* LAUCaptureVideoPreviewLayerShaders.metal in Sources */,
 				38E212A41D3258B800AAE5F6 /* LAUCaptureVideoPreviewLayerInternal.m in Sources */,
 				38E212A21D3258B800AAE5F6 /* LAUCaptureVideoPreviewLayer.m in Sources */,
 				38E03EE91D9130440055EFD3 /* LAUCaptureVideoPreviewLayerUtilities.m in Sources */,
@@ -550,7 +558,7 @@
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				INFOPLIST_FILE = test/LAUCaptureVideoPreviewLayerUITests/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				MTL_ENABLE_DEBUG_INFO = YES;
 				OTHER_CFLAGS = "-TEST=1";
@@ -580,7 +588,7 @@
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				INFOPLIST_FILE = test/LAUCaptureVideoPreviewLayerUITests/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				MTL_ENABLE_DEBUG_INFO = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = co.coletiv.lightmate.LAUCaptureVideoPreviewLayerUITests;
@@ -607,7 +615,7 @@
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				INFOPLIST_FILE = test/LAUCaptureVideoPreviewLayerTests/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				MTL_ENABLE_DEBUG_INFO = YES;
 				OTHER_CFLAGS = "-TEST=1";
@@ -636,7 +644,7 @@
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				INFOPLIST_FILE = test/LAUCaptureVideoPreviewLayerTests/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				MTL_ENABLE_DEBUG_INFO = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = co.coletiv.lightmate.LAUCaptureVideoPreviewLayerUITests.LAUCaptureVideoPreviewLayerUnitTests;
@@ -663,7 +671,7 @@
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				INFOPLIST_FILE = test/LAUCaptureVideoPreviewLayerUITestsApplication/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				MTL_ENABLE_DEBUG_INFO = YES;
 				OTHER_CFLAGS = "-TEST=1";
@@ -693,7 +701,7 @@
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				INFOPLIST_FILE = test/LAUCaptureVideoPreviewLayerUITestsApplication/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				MTL_ENABLE_DEBUG_INFO = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = co.coletiv.lightmate.LAUCaptureVideoPreviewLayerUITestsApplication;
@@ -781,7 +789,7 @@
 				INFOPLIST_EXPAND_BUILD_SETTINGS = YES;
 				INFOPLIST_FILE = "support/LAUCaptureVideoPreviewLayer-Info.plist";
 				INFOPLIST_OUTPUT_FORMAT = "same-as-input";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				ONLY_ACTIVE_ARCH = YES;
 				PLIST_FILE_OUTPUT_FORMAT = "same-as-input";
 				PRODUCT_BUNDLE_IDENTIFIER = co.coletiv.lightmate.LAUCaptureVideoPreviewLayer;
@@ -817,7 +825,7 @@
 				INFOPLIST_EXPAND_BUILD_SETTINGS = YES;
 				INFOPLIST_FILE = "support/LAUCaptureVideoPreviewLayer-Info.plist";
 				INFOPLIST_OUTPUT_FORMAT = "same-as-input";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				ONLY_ACTIVE_ARCH = NO;
 				OTHER_CFLAGS = "-DNS_BLOCK_ASSERTIONS=1";
 				PLIST_FILE_OUTPUT_FORMAT = "same-as-input";

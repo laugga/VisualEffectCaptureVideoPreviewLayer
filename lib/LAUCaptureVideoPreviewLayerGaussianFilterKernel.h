@@ -31,8 +31,9 @@
 #warning "Objective-C — needs to be refactored and re-written in Swift"
 
 #import <assert.h>
+#import <math.h>
 
-/* 
+/*
  This values are generated from the matlab script:
  docs/matlab/LAUCaptureVideoPreviewLayer.m
  See project documentation for more details

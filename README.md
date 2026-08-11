@@ -2,16 +2,16 @@
 
 ## Introduction
 
-LAUCaptureVideoPreviewLayer is a preview layer for the AVCaptureSession with GPU-based blur filter. You can use it like a AVCaptureVideoPreviewLayer and then dynamically/in real-time apply a blur filter to the video output frames.
+LAUCaptureVideoPreviewLayer is a preview layer for the AVCaptureSession with a Metal-based blur filter. You can use it like a AVCaptureVideoPreviewLayer and then dynamically/in real-time apply a blur filter to the video output frames.
 
 It was developed for [Lightmate](https://lightmate.app/ "Lightmate")'s iOS app with the goal of replacing AVFoundation's *AVCaptureVideoPreviewLayer*. This is mainly an R&D project and there are still many optimizations needed before it can be used in a "production" context. This is an attempt to share some of the learnings and components used in the app.
 
 ## Requirements and Dependencies
 
-* iOS 7.0 or later
+* iOS 17.0 or later
 * ARC
-* Suported devices: ?
-* OpenGL 2.0 / GLSL
+* Suported devices: any device with a Metal capable GPU
+* Metal / Metal Shading Language
 
 ## Using with CocoaPods
 
