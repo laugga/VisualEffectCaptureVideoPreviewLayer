@@ -1,7 +1,7 @@
 /*
 
- MockLAUCaptureVideoPreviewLayerInternal.h
- LAUCaptureVideoPreviewLayerExample
+ LAUCaptureVideoPreviewLayerShaders.swift
+ LAUCaptureVideoPreviewLayer
 
  Copyright (c) 2016 Luis Laugga.
  Some rights reserved, all wrongs deserved.
@@ -25,25 +25,27 @@
 
 */
 
-#warning "Objective-C — needs to be refactored and re-written in Swift"
+import Foundation
 
-#import <UIKit/UIKit.h>
-
-@import LAUCaptureVideoPreviewLayer;
-
-/*!
- @class MockLAUCaptureVideoPreviewLayerInternal
- @abstract
- Feeds the preview layer with a generated still image instead of a capture session.
-
- @discussion
- The iOS Simulator has no capture device, so the example would show nothing there.
- This mock stands in for the capture pipeline and lets the blur be seen without a
- camera. It is compiled into the example only, never into the library.
+/*
+ The shader sources live in LAUCaptureVideoPreviewLayerShaders.metal and are
+ compiled at build time into the default metallib of the package resource bundle.
+ The only thing needed here are the names used to look the shader functions up.
  */
-@interface MockLAUCaptureVideoPreviewLayerInternal : LAUCaptureVideoPreviewLayerInternal
+enum ShaderFunctionName {
 
-- (void)simulateCaptureSessionDidStartRunningNotification;
-- (void)simulateCaptureSessionDidStopRunningNotification;
+    /// Passthrough, shared by every render pipeline
+    static let defaultVertex = "defaultVertexShader"
 
-@end
+    /// Filter is disabled
+    static let defaultFragment = "defaultFragmentShader"
+
+    /// Filter enabled, bilinear texture sampling, bounds disabled
+    static let blurFilterBtsFragment = "blurFilterBtsFragmentShader"
+
+    /// Filter enabled, bilinear texture sampling, bounds enabled
+    static let blurFilterBtsBoundsFragment = "blurFilterBtsBoundsFragmentShader"
+
+    /// Discrete texture sampling, bounds disabled
+    static let blurFilterDtsFragment = "blurFilterDtsFragmentShader"
+}

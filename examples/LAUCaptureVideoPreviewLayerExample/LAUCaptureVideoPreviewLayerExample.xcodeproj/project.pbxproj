@@ -7,44 +7,36 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		3AF3000000000000000000F1 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AF3000000000000000000E1 /* AppDelegate.swift */; };
+		3AF3000000000000000000F2 /* CameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AF3000000000000000000E2 /* CameraPreviewView.swift */; };
+		3AF3000000000000000000F3 /* CameraViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AF3000000000000000000E3 /* CameraViewController.swift */; };
+		3AF3000000000000000000F4 /* MockCaptureVideoPreviewLayerInternal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AF3000000000000000000E4 /* MockCaptureVideoPreviewLayerInternal.swift */; };
 		3AF2000000000000000000C3 /* LAUCaptureVideoPreviewLayer in Frameworks */ = {isa = PBXBuildFile; productRef = 3AF2000000000000000000C2 /* LAUCaptureVideoPreviewLayer */; };
 		380ED6B21D9037AA009BEB7A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 380ED6B11D9037AA009BEB7A /* Images.xcassets */; };
 		389735071DB50D4700A4154B /* Launch Screen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 389735061DB50D4700A4154B /* Launch Screen.storyboard */; };
 		38E212A91D32680D00AAE5F6 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 38E212A81D32680D00AAE5F6 /* AVFoundation.framework */; };
-		38E212B01D326B4100AAE5F6 /* CameraPreviewView.m in Sources */ = {isa = PBXBuildFile; fileRef = 38E212AF1D326B4100AAE5F6 /* CameraPreviewView.m */; };
-		3AF2000000000000000000D3 /* MockLAUCaptureVideoPreviewLayerInternal.m in Sources */ = {isa = PBXBuildFile; fileRef = 3AF2000000000000000000D2 /* MockLAUCaptureVideoPreviewLayerInternal.m */; };
 		A06ACB2A1608B2C300E20441 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A06ACB291608B2C300E20441 /* UIKit.framework */; };
 		A06ACB2C1608B2C300E20441 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A06ACB2B1608B2C300E20441 /* Foundation.framework */; };
 		A06ACB2E1608B2C300E20441 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A06ACB2D1608B2C300E20441 /* CoreGraphics.framework */; };
 		A0C519601880585600FE03D2 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = A0C519501880585600FE03D2 /* InfoPlist.strings */; };
-		A0C519621880585600FE03D2 /* CameraViewController.xib in Resources */ = {isa = PBXBuildFile; fileRef = A0C519541880585600FE03D2 /* CameraViewController.xib */; };
-		A0C519701880589F00FE03D2 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = A0C5196B1880589F00FE03D2 /* AppDelegate.m */; };
-		A0C519711880589F00FE03D2 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = A0C5196D1880589F00FE03D2 /* main.m */; };
-		A0C519721880589F00FE03D2 /* CameraViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = A0C5196F1880589F00FE03D2 /* CameraViewController.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		3AF3000000000000000000E1 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = src/AppDelegate.swift; sourceTree = SOURCE_ROOT; };
+		3AF3000000000000000000E2 /* CameraPreviewView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = CameraPreviewView.swift; path = src/CameraPreviewView.swift; sourceTree = SOURCE_ROOT; };
+		3AF3000000000000000000E3 /* CameraViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = CameraViewController.swift; path = src/CameraViewController.swift; sourceTree = SOURCE_ROOT; };
+		3AF3000000000000000000E4 /* MockCaptureVideoPreviewLayerInternal.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = MockCaptureVideoPreviewLayerInternal.swift; path = src/MockCaptureVideoPreviewLayerInternal.swift; sourceTree = SOURCE_ROOT; };
 		3807FF711DD20EEC00C4FC1F /* LAUCaptureVideoPreviewLayerExample-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = "LAUCaptureVideoPreviewLayerExample-Info.plist"; path = "support/LAUCaptureVideoPreviewLayerExample-Info.plist"; sourceTree = SOURCE_ROOT; };
 		3807FF731DD20EF900C4FC1F /* LAUCaptureVideoPreviewLayerExample-Prefix.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "LAUCaptureVideoPreviewLayerExample-Prefix.pch"; path = "support/LAUCaptureVideoPreviewLayerExample-Prefix.pch"; sourceTree = SOURCE_ROOT; };
 		380ED6B11D9037AA009BEB7A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = LAUCaptureVideoPreviewLayerExample/Images.xcassets; sourceTree = SOURCE_ROOT; };
 		389735061DB50D4700A4154B /* Launch Screen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = "Launch Screen.storyboard"; path = "resources/Launch Screen.storyboard"; sourceTree = SOURCE_ROOT; };
 		38E212A81D32680D00AAE5F6 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
-		38E212AE1D326B4100AAE5F6 /* CameraPreviewView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = CameraPreviewView.h; path = src/CameraPreviewView.h; sourceTree = SOURCE_ROOT; };
-		38E212AF1D326B4100AAE5F6 /* CameraPreviewView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = CameraPreviewView.m; path = src/CameraPreviewView.m; sourceTree = SOURCE_ROOT; };
-		3AF2000000000000000000D1 /* MockLAUCaptureVideoPreviewLayerInternal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = MockLAUCaptureVideoPreviewLayerInternal.h; path = src/MockLAUCaptureVideoPreviewLayerInternal.h; sourceTree = SOURCE_ROOT; };
-		3AF2000000000000000000D2 /* MockLAUCaptureVideoPreviewLayerInternal.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = MockLAUCaptureVideoPreviewLayerInternal.m; path = src/MockLAUCaptureVideoPreviewLayerInternal.m; sourceTree = SOURCE_ROOT; };
 		A01C02411620D9BA003DA76F /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 		A06ACB251608B2C300E20441 /* LAUCaptureVideoPreviewLayerExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LAUCaptureVideoPreviewLayerExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A06ACB291608B2C300E20441 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
 		A06ACB2B1608B2C300E20441 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		A06ACB2D1608B2C300E20441 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
 		A0C519511880585600FE03D2 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = InfoPlist.strings; sourceTree = "<group>"; };
-		A0C519551880585600FE03D2 /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = CameraViewController.xib; sourceTree = "<group>"; };
-		A0C5196A1880589F00FE03D2 /* AppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = AppDelegate.h; path = src/AppDelegate.h; sourceTree = SOURCE_ROOT; };
-		A0C5196B1880589F00FE03D2 /* AppDelegate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = AppDelegate.m; path = src/AppDelegate.m; sourceTree = SOURCE_ROOT; };
-		A0C5196D1880589F00FE03D2 /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = main.m; path = src/main.m; sourceTree = SOURCE_ROOT; };
-		A0C5196E1880589F00FE03D2 /* CameraViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = CameraViewController.h; path = src/CameraViewController.h; sourceTree = SOURCE_ROOT; };
-		A0C5196F1880589F00FE03D2 /* CameraViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = CameraViewController.m; path = src/CameraViewController.m; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -66,6 +58,10 @@
 		A06ACB1A1608B2C200E20441 = {
 			isa = PBXGroup;
 			children = (
+				3AF3000000000000000000E1 /* AppDelegate.swift */,
+				3AF3000000000000000000E2 /* CameraPreviewView.swift */,
+				3AF3000000000000000000E3 /* CameraViewController.swift */,
+				3AF3000000000000000000E4 /* MockCaptureVideoPreviewLayerInternal.swift */,
 				A0F1A4F416302EC1002E6BE5 /* Classes */,
 				A0F1A4F516302ECA002E6BE5 /* Other Sources */,
 				A0F1A4F616302EE4002E6BE5 /* Resources */,
@@ -108,7 +104,6 @@
 			isa = PBXGroup;
 			children = (
 				A0C519501880585600FE03D2 /* InfoPlist.strings */,
-				A0C519541880585600FE03D2 /* CameraViewController.xib */,
 			);
 			name = en.lproj;
 			path = resources/en.lproj;
@@ -117,14 +112,6 @@
 		A0F1A4F416302EC1002E6BE5 /* Classes */ = {
 			isa = PBXGroup;
 			children = (
-				A0C5196A1880589F00FE03D2 /* AppDelegate.h */,
-				A0C5196B1880589F00FE03D2 /* AppDelegate.m */,
-				A0C5196E1880589F00FE03D2 /* CameraViewController.h */,
-				A0C5196F1880589F00FE03D2 /* CameraViewController.m */,
-				38E212AE1D326B4100AAE5F6 /* CameraPreviewView.h */,
-				38E212AF1D326B4100AAE5F6 /* CameraPreviewView.m */,
-				3AF2000000000000000000D1 /* MockLAUCaptureVideoPreviewLayerInternal.h */,
-				3AF2000000000000000000D2 /* MockLAUCaptureVideoPreviewLayerInternal.m */,
 			);
 			name = Classes;
 			path = LAPickerView;
@@ -134,7 +121,6 @@
 			isa = PBXGroup;
 			children = (
 				3807FF731DD20EF900C4FC1F /* LAUCaptureVideoPreviewLayerExample-Prefix.pch */,
-				A0C5196D1880589F00FE03D2 /* main.m */,
 			);
 			name = "Other Sources";
 			path = LAPickerView;
@@ -227,7 +213,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A0C519621880585600FE03D2 /* CameraViewController.xib in Resources */,
 				380ED6B21D9037AA009BEB7A /* Images.xcassets in Resources */,
 				389735071DB50D4700A4154B /* Launch Screen.storyboard in Resources */,
 				A0C519601880585600FE03D2 /* InfoPlist.strings in Resources */,
@@ -244,11 +229,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				38E212B01D326B4100AAE5F6 /* CameraPreviewView.m in Sources */,
-				3AF2000000000000000000D3 /* MockLAUCaptureVideoPreviewLayerInternal.m in Sources */,
-				A0C519721880589F00FE03D2 /* CameraViewController.m in Sources */,
-				A0C519711880589F00FE03D2 /* main.m in Sources */,
-				A0C519701880589F00FE03D2 /* AppDelegate.m in Sources */,
+				3AF3000000000000000000F1 /* AppDelegate.swift in Sources */,
+				3AF3000000000000000000F2 /* CameraPreviewView.swift in Sources */,
+				3AF3000000000000000000F3 /* CameraViewController.swift in Sources */,
+				3AF3000000000000000000F4 /* MockCaptureVideoPreviewLayerInternal.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -261,14 +245,6 @@
 				A0C519511880585600FE03D2 /* en */,
 			);
 			name = InfoPlist.strings;
-			sourceTree = "<group>";
-		};
-		A0C519541880585600FE03D2 /* CameraViewController.xib */ = {
-			isa = PBXVariantGroup;
-			children = (
-				A0C519551880585600FE03D2 /* en */,
-			);
-			name = CameraViewController.xib;
 			sourceTree = "<group>";
 		};
 /* End PBXVariantGroup section */
@@ -308,6 +284,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				CLANG_ENABLE_MODULES = YES;
+				SWIFT_VERSION = 5.0;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
@@ -341,6 +318,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				CLANG_ENABLE_MODULES = YES;
+				SWIFT_VERSION = 5.0;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				ONLY_ACTIVE_ARCH = NO;
 				OTHER_CFLAGS = "-DNS_BLOCK_ASSERTIONS=1";
@@ -361,10 +339,10 @@
 					"\"$(SRCROOT)\"",
 				);
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = "support/LAUCaptureVideoPreviewLayerExample-Prefix.pch";
 				GCC_THUMB_SUPPORT = NO;
 				INFOPLIST_FILE = "support/LAUCaptureVideoPreviewLayerExample-Info.plist";
 				CLANG_ENABLE_MODULES = YES;
+				SWIFT_VERSION = 5.0;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				PRODUCT_BUNDLE_IDENTIFIER = co.coletiv.LAUCaptureVideoPreviewLayerExample;
 				PRODUCT_NAME = LAUCaptureVideoPreviewLayerExample;
@@ -384,10 +362,10 @@
 					"\"$(SRCROOT)\"",
 				);
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = "support/LAUCaptureVideoPreviewLayerExample-Prefix.pch";
 				GCC_THUMB_SUPPORT = NO;
 				INFOPLIST_FILE = "support/LAUCaptureVideoPreviewLayerExample-Info.plist";
 				CLANG_ENABLE_MODULES = YES;
+				SWIFT_VERSION = 5.0;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				PRODUCT_BUNDLE_IDENTIFIER = co.coletiv.LAUCaptureVideoPreviewLayerExample;
 				PRODUCT_NAME = LAUCaptureVideoPreviewLayerExample;

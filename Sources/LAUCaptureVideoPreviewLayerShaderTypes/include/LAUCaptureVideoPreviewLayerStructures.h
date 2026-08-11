@@ -28,8 +28,6 @@
 #ifndef LAUCaptureVideoPreviewLayerStructures_h
 #define LAUCaptureVideoPreviewLayerStructures_h
 
-#warning "Objective-C — needs to be refactored and re-written in Swift"
-
 /*
  This header is shared between the Objective-C sources and the Metal shading
  language sources (LAUCaptureVideoPreviewLayerShaders.metal). Everything above
