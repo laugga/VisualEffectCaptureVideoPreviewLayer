@@ -18,8 +18,9 @@ DerivedData
 .idea/
 *.hmap
 
-#CocoaPods
-Pods
+# Swift Package Manager
+.build
+.swiftpm
 
 #Other
 *~

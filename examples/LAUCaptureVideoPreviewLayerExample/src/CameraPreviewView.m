@@ -27,6 +27,10 @@
 
 #import "CameraPreviewView.h"
 
+#if TARGET_OS_SIMULATOR
+#import "MockLAUCaptureVideoPreviewLayerInternal.h"
+#endif
+
 @implementation CameraPreviewView
 
 static CGFloat const kLongPressBeganLocationLayerWidth = 80.0f;
@@ -68,14 +72,34 @@ static CGFloat const kLongPressBeganLocationLayerWidth = 80.0f;
 
 - (void)setCaptureSession:(id)captureSession
 {
+#if TARGET_OS_SIMULATOR
+    // The Simulator has no capture device, so the preview is fed with a generated
+    // still image instead of a capture session
+    if (YES)
+#else
     if (captureSession)
+#endif
     {
         // Create the session video preview layer
         LAUCaptureVideoPreviewLayer * videoPreviewLayer = [[LAUCaptureVideoPreviewLayer alloc] initWithSession:captureSession];
         [videoPreviewLayer setBackgroundColor:[self.backgroundColor CGColor]];
         [videoPreviewLayer setVideoGravity:AVLayerVideoGravityResizeAspectFill]; // fill the layer
 
+#if TARGET_OS_SIMULATOR
+        MockLAUCaptureVideoPreviewLayerInternal * mockInternal = [MockLAUCaptureVideoPreviewLayerInternal new];
+        mockInternal.delegate = (id<LAUCaptureVideoPreviewLayerInternalDelegate>)videoPreviewLayer;
+        [videoPreviewLayer setInternal:mockInternal];
+#endif
+
         [self setVideoPreviewLayer:videoPreviewLayer];
+
+#if TARGET_OS_SIMULATOR
+        // Start the preview once the layer has been laid out, the same notification
+        // the layer would get from a capture session that started running
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [mockInternal simulateCaptureSessionDidStartRunningNotification];
+        });
+#endif
     }
     else
     {
