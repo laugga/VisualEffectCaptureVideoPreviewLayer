@@ -6,6 +6,8 @@
 //  Copyright © 2016 Luis Laugga. All rights reserved.
 //
 
+#warning "Objective-C — needs to be refactored and re-written in Swift"
+
 #import <XCTest/XCTest.h>
 
 #import "UIImage+Compare.h"

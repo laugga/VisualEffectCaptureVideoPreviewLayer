@@ -28,6 +28,8 @@
 #ifndef LAUCaptureVideoPreviewLayerShaders_h
 #define LAUCaptureVideoPreviewLayerShaders_h
 
+#warning "Objective-C — needs to be refactored and re-written in Swift"
+
 /*!
  Vertex Shader
  

@@ -25,6 +25,8 @@
  
 */
 
+#warning "Objective-C — needs to be refactored and re-written in Swift"
+
 #import "LAUCaptureVideoPreviewLayer.h"
 #import "LAUCaptureVideoPreviewLayerInternal.h"
 #import "LAUCaptureVideoPreviewLayerStructures.h"

@@ -174,8 +174,19 @@ it:
   emits dozens. They are expected. Do not silence them with
   `GLES_SILENCE_DEPRECATION` — the warnings are the standing argument for
   pull request #1, the Metal migration.
-- **LM-600 will add a `#warning` to every `.h`/`.m` in this repository**
-  marking it for rewrite in Swift. Expect those marks, and leave them in place.
+- **Every `.h`/`.m` in this repository carries a `#warning`** marking it for
+  rewrite in Swift — `#warning "Objective-C — needs to be refactored and
+  re-written in Swift"`, added by LM-600, the same mark LM-590 put on the app's
+  own Objective-C. Thirty-one files under `lib/`, `test/` and `examples/` have
+  it. **Expect those marks, leave them in place, and add one to any new file.**
+  It sits immediately after the license block, or immediately after the
+  `#define` of the include guard in the four headers that have one, so it is
+  emitted once per translation unit rather than once per `#include`.
+
+  Two things deliberately do *not* carry it. The `-Prefix.pch` files are
+  outside the `.h`/`.m`/`.c` scope and are included in every translation unit,
+  so a mark there would repeat the per-file mark rather than add to it. And the
+  GLSL cannot take one at all — see the gotcha below.
 
 The deployment floor is **iOS 15.0**, raised from 7.0/8.0/10.0 in LM-598 only
 because Xcode 27 refuses to build anything below 15.0. It is not a considered
@@ -279,6 +290,21 @@ its task are the same in every Laugga Practice repository and are documented in
   beside it if you want them to keep matching. (This is also why LM-600's
   `#warning` sweep reaches the live shader source for free — it lives in a
   `.h`.)
+
+- **The GLSL itself is not marked, and must not be.** The shader sources are
+  not Swift and never will be: GLSL's replacement here is Metal Shading
+  Language under pull request #1, not Swift, so "needs to be re-written in
+  Swift" would be the wrong claim even if it could be written. And it cannot:
+  these shaders declare no `#version`, which makes them GLSL ES 1.00, whose
+  preprocessor has no `#warning` — it defines `#define`, `#undef`, `#if`,
+  `#ifdef`, `#ifndef`, `#else`, `#elif`, `#endif`, `#error`, `#pragma`,
+  `#extension`, `#version` and `#line`, and nothing else. An unrecognised
+  directive is a *compile error*, and these shaders compile at runtime, so a
+  `#warning` inside one of the string literals in
+  `lib/LAUCaptureVideoPreviewLayerShaders.h` would not warn — it would fail
+  `glCompileShader` and blank the preview. The same goes for the dead reference
+  copies in `resources/shaders/`. The header they live in carries the mark for
+  them; the GLSL between the quotes is left alone.
 
 - **`…GaussianFilterKernel.h` defines thirteen non-`static` functions with
   bodies** — `gaussianFilterKernelCount()`, the `dtsGaussianFilter*` accessors,
