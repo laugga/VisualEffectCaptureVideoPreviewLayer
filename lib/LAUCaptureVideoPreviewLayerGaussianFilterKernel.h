@@ -28,6 +28,8 @@
 #ifndef LAUCaptureVideoPreviewLayerGaussianFilterKernel_h
 #define LAUCaptureVideoPreviewLayerGaussianFilterKernel_h
 
+#warning "Objective-C — needs to be refactored and re-written in Swift"
+
 #import <assert.h>
 
 /* 

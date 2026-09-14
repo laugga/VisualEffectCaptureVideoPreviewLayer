@@ -28,6 +28,8 @@
 #ifndef LAUCaptureVideoPreviewLayerUtilities_h
 #define LAUCaptureVideoPreviewLayerUtilities_h
 
+#warning "Objective-C — needs to be refactored and re-written in Swift"
+
 #if TARGET_OS_IPHONE
     #import <OpenGLES/ES2/gl.h>
 #else

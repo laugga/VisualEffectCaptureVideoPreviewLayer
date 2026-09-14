@@ -28,6 +28,8 @@
 #ifndef LAUCaptureVideoPreviewLayerStructures_h
 #define LAUCaptureVideoPreviewLayerStructures_h
 
+#warning "Objective-C — needs to be refactored and re-written in Swift"
+
 #pragma mark -
 #pragma Shader handles
 
