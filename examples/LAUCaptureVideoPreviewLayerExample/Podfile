@@ -1,5 +1,0 @@
-platform :ios, '7.0'
-
-target "LAUCaptureVideoPreviewLayerExample" do
-  pod "LAUCaptureVideoPreviewLayer", :path => '../../'
-end

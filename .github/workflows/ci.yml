@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  test:
+    name: Build and test
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The shaders are compiled at build time, and recent Xcode versions ship the
+      # Metal toolchain as a separate downloadable component
+      - name: Download the Metal toolchain
+        run: xcodebuild -downloadComponent MetalToolchain
+        continue-on-error: true
+
+      # The rendering tests compare against reference images captured at a 2x scale,
+      # so they need a device with a 2x screen, such as the iPhone SE
+      - name: Test
+        run: |
+          xcodebuild test \
+            -scheme LAUCaptureVideoPreviewLayer \
+            -destination 'platform=iOS Simulator,name=iPhone SE (3rd generation)'
+
+      - name: Build the example
+        run: |
+          xcodebuild build \
+            -project examples/LAUCaptureVideoPreviewLayerExample/LAUCaptureVideoPreviewLayerExample.xcodeproj \
+            -scheme LAUCaptureVideoPreviewLayerExample \
+            -destination 'platform=iOS Simulator,name=iPhone SE (3rd generation)'

@@ -147,7 +147,14 @@
     {
         return;
     }
-    
+
+#if TARGET_OS_SIMULATOR
+    // There is no capture device on the Simulator. The preview view falls back to a
+    // mock that feeds the preview layer with a generated still image
+    [_previewView setCaptureSession:nil];
+    return;
+#endif
+
     NSError * error = nil;
     
     // Create Session
