@@ -33,8 +33,12 @@ final class DefaultScenarioViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        // Dark, so the navigation bar stays legible over the black preview
-        overrideUserInterfaceStyle = .dark
+        // The preview runs under the navigation bar, so give the bar a background
+        // of its own to keep the title and back button legible over it
+        let navigationBarAppearance = UINavigationBarAppearance()
+        navigationBarAppearance.configureWithDefaultBackground()
+        navigationItem.scrollEdgeAppearance = navigationBarAppearance
+
         view.backgroundColor = .black
 
         previewView.backgroundColor = .black

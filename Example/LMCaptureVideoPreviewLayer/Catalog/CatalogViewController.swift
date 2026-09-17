@@ -29,8 +29,8 @@ final class CatalogViewController: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
+        // Not a large title: the component name does not fit one on a 4.7" screen
         title = "LMCaptureVideoPreviewLayer"
-        navigationController?.navigationBar.prefersLargeTitles = true
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: Self.cellIdentifier)
     }
 
