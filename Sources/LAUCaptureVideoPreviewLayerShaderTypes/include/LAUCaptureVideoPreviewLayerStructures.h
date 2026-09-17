@@ -29,10 +29,11 @@
 #define LAUCaptureVideoPreviewLayerStructures_h
 
 /*
- This header is shared between the Objective-C sources and the Metal shading
- language sources (LAUCaptureVideoPreviewLayerShaders.metal). Everything above
- the __OBJC__ section must be valid in both languages, so that the uniform and
- vertex layouts are guaranteed to match on both sides.
+ This header is shared between the Swift sources, which import it through the
+ LAUCaptureVideoPreviewLayerShaderTypes module, and the Metal shading language
+ sources (LAUCaptureVideoPreviewLayerShaders.metal). Everything in it must be
+ valid in both C and the Metal shading language, so that the uniform and vertex
+ layouts are guaranteed to match on both sides.
  */
 
 #include <simd/simd.h>
@@ -82,10 +83,10 @@ typedef struct {
 /*!
  Filter arguments, the Metal equivalent of the old struct UniformHandles.
  Instead of holding uniform locations, the struct now holds the values
- themselves and is uploaded per draw call with setFragmentBytes:.
+ themselves and is uploaded per draw call with setFragmentBytes(_:length:index:).
 
  The vector members come first so that the layout matches on both the
- Objective-C and the Metal side (vector_float4 is 16-byte aligned).
+ Swift and the Metal side (vector_float4 is 16-byte aligned).
  */
 typedef struct {
 
@@ -101,66 +102,5 @@ typedef struct {
     float filterKernelWeights[kFilterKernelMaxWeights];
 
 } FilterUniforms_t;
-
-#pragma mark -
-#pragma mark Filter kernel
-
-#ifndef __METAL_VERSION__
-
-struct FilterKernel {
-    unsigned int radius;
-    float * weights;
-    unsigned int samples; // s
-    float * offsets;
-    unsigned int size; // m
-};
-
-typedef struct FilterKernel FilterKernel_t;
-
-#endif /* __METAL_VERSION__ */
-
-#pragma mark -
-#pragma mark Texture instance
-
-#ifdef __OBJC__
-
-#import <Metal/Metal.h>
-
-/*!
- @class LAUTextureInstance
- @abstract
- Everything needed to sample a texture and to draw a quad with it.
-
- @discussion
- This is the Metal counterpart of the old struct TextureInstance. It is a class
- and not a C struct because Metal resources are Objective-C objects and can not
- be owned by a plain struct under ARC.
-
- Where the OpenGL version kept a framebuffer object per instance, the Metal
- version keeps a render pass descriptor: in Metal the destination texture is
- itself the render target.
- */
-@interface LAUTextureInstance : NSObject
-
-// Texture dimensions
-@property (nonatomic, assign) float textureWidth;
-@property (nonatomic, assign) float textureHeight;
-
-// Texture binding
-@property (nonatomic, strong) id<MTLTexture> texture;
-
-// Geometry, vertex positions and texture coordinates (aspect-fit) (optional)
-@property (nonatomic, strong) id<MTLBuffer> vertexBuffer;
-@property (nonatomic, assign) NSUInteger vertexCount;
-
-// Geometry, primitive type such as MTLPrimitiveTypeTriangleStrip (optional)
-@property (nonatomic, assign) MTLPrimitiveType primitiveType;
-
-// Drawing render pass, the Metal equivalent of the framebuffer (optional)
-@property (nonatomic, strong) MTLRenderPassDescriptor * renderPassDescriptor;
-
-@end
-
-#endif /* __OBJC__ */
 
 #endif /* LAUCaptureVideoPreviewLayerStructures_h */

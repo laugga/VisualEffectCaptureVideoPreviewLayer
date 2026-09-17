@@ -18,7 +18,6 @@
 		A06ACB2A1608B2C300E20441 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A06ACB291608B2C300E20441 /* UIKit.framework */; };
 		A06ACB2C1608B2C300E20441 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A06ACB2B1608B2C300E20441 /* Foundation.framework */; };
 		A06ACB2E1608B2C300E20441 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A06ACB2D1608B2C300E20441 /* CoreGraphics.framework */; };
-		A0C519601880585600FE03D2 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = A0C519501880585600FE03D2 /* InfoPlist.strings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,7 +26,6 @@
 		3AF3000000000000000000E3 /* CameraViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = CameraViewController.swift; path = src/CameraViewController.swift; sourceTree = SOURCE_ROOT; };
 		3AF3000000000000000000E4 /* MockCaptureVideoPreviewLayerInternal.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = MockCaptureVideoPreviewLayerInternal.swift; path = src/MockCaptureVideoPreviewLayerInternal.swift; sourceTree = SOURCE_ROOT; };
 		3807FF711DD20EEC00C4FC1F /* LAUCaptureVideoPreviewLayerExample-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = "LAUCaptureVideoPreviewLayerExample-Info.plist"; path = "support/LAUCaptureVideoPreviewLayerExample-Info.plist"; sourceTree = SOURCE_ROOT; };
-		3807FF731DD20EF900C4FC1F /* LAUCaptureVideoPreviewLayerExample-Prefix.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "LAUCaptureVideoPreviewLayerExample-Prefix.pch"; path = "support/LAUCaptureVideoPreviewLayerExample-Prefix.pch"; sourceTree = SOURCE_ROOT; };
 		380ED6B11D9037AA009BEB7A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = LAUCaptureVideoPreviewLayerExample/Images.xcassets; sourceTree = SOURCE_ROOT; };
 		389735061DB50D4700A4154B /* Launch Screen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = "Launch Screen.storyboard"; path = "resources/Launch Screen.storyboard"; sourceTree = SOURCE_ROOT; };
 		38E212A81D32680D00AAE5F6 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
@@ -36,7 +34,6 @@
 		A06ACB291608B2C300E20441 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
 		A06ACB2B1608B2C300E20441 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		A06ACB2D1608B2C300E20441 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
-		A0C519511880585600FE03D2 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = InfoPlist.strings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -62,8 +59,6 @@
 				3AF3000000000000000000E2 /* CameraPreviewView.swift */,
 				3AF3000000000000000000E3 /* CameraViewController.swift */,
 				3AF3000000000000000000E4 /* MockCaptureVideoPreviewLayerInternal.swift */,
-				A0F1A4F416302EC1002E6BE5 /* Classes */,
-				A0F1A4F516302ECA002E6BE5 /* Other Sources */,
 				A0F1A4F616302EE4002E6BE5 /* Resources */,
 				A0C51945188057B700FE03D2 /* Support */,
 				A06ACB281608B2C300E20441 /* Frameworks */,
@@ -100,37 +95,10 @@
 			path = LAPickerView;
 			sourceTree = "<group>";
 		};
-		A0C5194F1880585600FE03D2 /* en.lproj */ = {
-			isa = PBXGroup;
-			children = (
-				A0C519501880585600FE03D2 /* InfoPlist.strings */,
-			);
-			name = en.lproj;
-			path = resources/en.lproj;
-			sourceTree = SOURCE_ROOT;
-		};
-		A0F1A4F416302EC1002E6BE5 /* Classes */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			name = Classes;
-			path = LAPickerView;
-			sourceTree = "<group>";
-		};
-		A0F1A4F516302ECA002E6BE5 /* Other Sources */ = {
-			isa = PBXGroup;
-			children = (
-				3807FF731DD20EF900C4FC1F /* LAUCaptureVideoPreviewLayerExample-Prefix.pch */,
-			);
-			name = "Other Sources";
-			path = LAPickerView;
-			sourceTree = "<group>";
-		};
 		A0F1A4F616302EE4002E6BE5 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
 				380ED6B11D9037AA009BEB7A /* Images.xcassets */,
-				A0C5194F1880585600FE03D2 /* en.lproj */,
 				389735061DB50D4700A4154B /* Launch Screen.storyboard */,
 			);
 			name = Resources;
@@ -215,7 +183,6 @@
 			files = (
 				380ED6B21D9037AA009BEB7A /* Images.xcassets in Resources */,
 				389735071DB50D4700A4154B /* Launch Screen.storyboard in Resources */,
-				A0C519601880585600FE03D2 /* InfoPlist.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -237,17 +204,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
-
-/* Begin PBXVariantGroup section */
-		A0C519501880585600FE03D2 /* InfoPlist.strings */ = {
-			isa = PBXVariantGroup;
-			children = (
-				A0C519511880585600FE03D2 /* en */,
-			);
-			name = InfoPlist.strings;
-			sourceTree = "<group>";
-		};
-/* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
 		A06ACB441608B2C300E20441 /* Debug */ = {
@@ -338,7 +294,6 @@
 					"$(inherited)",
 					"\"$(SRCROOT)\"",
 				);
-				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_THUMB_SUPPORT = NO;
 				INFOPLIST_FILE = "support/LAUCaptureVideoPreviewLayerExample-Info.plist";
 				CLANG_ENABLE_MODULES = YES;
@@ -361,7 +316,6 @@
 					"$(inherited)",
 					"\"$(SRCROOT)\"",
 				);
-				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_THUMB_SUPPORT = NO;
 				INFOPLIST_FILE = "support/LAUCaptureVideoPreviewLayerExample-Info.plist";
 				CLANG_ENABLE_MODULES = YES;
