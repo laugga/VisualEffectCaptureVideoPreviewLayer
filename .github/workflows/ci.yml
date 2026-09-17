@@ -30,6 +30,6 @@ jobs:
       - name: Build the example
         run: |
           xcodebuild build \
-            -project Example/LMCaptureVideoPreviewLayerExample/LMCaptureVideoPreviewLayerExample.xcodeproj \
-            -scheme LMCaptureVideoPreviewLayerExample \
+            -project Example/LMCaptureVideoPreviewLayer.xcodeproj \
+            -scheme Example \
             -destination 'platform=iOS Simulator,name=iPhone SE (3rd generation)'

@@ -5,8 +5,8 @@
 # The root exposes only `deploy`, delegating here. Work on the app directly
 # with `make -C Example build`, `make -C Example test`, and so on.
 
-PROJECT := LMCaptureVideoPreviewLayerExample/LMCaptureVideoPreviewLayerExample.xcodeproj
-SCHEME  := LMCaptureVideoPreviewLayerExample
+PROJECT := LMCaptureVideoPreviewLayer.xcodeproj
+SCHEME  := Example
 
 .DEFAULT_GOAL := help
 .PHONY: help build test clean archive deploy
@@ -46,7 +46,7 @@ clean: ## Remove the Example app's build products
 # build is". Signing is the project's own — automatic, team JJC3QT2D2L — with
 # the developer account signed in to Xcode.
 
-ARCHIVE_PATH   := build/LMCaptureVideoPreviewLayerExample.xcarchive
+ARCHIVE_PATH   := build/LMCaptureVideoPreviewLayer.xcarchive
 EXPORT_PATH    := build/export
 # Only the export method: the archive supplies the signing style and the
 # team, and the default thinning is one universal .ipa.
@@ -89,11 +89,11 @@ FIREBASE_PROJECT := lightmate-development-390f6
 FIREBASE_APP     := 1:480717957783:ios:5d8fa27e0dc6888c8f97d2
 FIREBASE_GROUPS  := internal
 
-# PRODUCT_NAME is LMCaptureVideoPreviewLayerExample, so the app is
-# LMCaptureVideoPreviewLayerExample.app and the export is
-# LMCaptureVideoPreviewLayerExample.ipa — the target's product, not the
-# scheme's name (they happen to match here).
-IPA           := $(EXPORT_PATH)/LMCaptureVideoPreviewLayerExample.ipa
+# PRODUCT_NAME is LMCaptureVideoPreviewLayer, so the app is
+# LMCaptureVideoPreviewLayer.app and the export is LMCaptureVideoPreviewLayer.ipa
+# — the target's product, not the scheme's name (Example). The app's Swift
+# module is LMCaptureVideoPreviewLayerExample, distinct from the package's.
+IPA           := $(EXPORT_PATH)/LMCaptureVideoPreviewLayer.ipa
 RELEASE_NOTES := build/release-notes.txt
 UPLOAD_LOG    := build/upload.log
 

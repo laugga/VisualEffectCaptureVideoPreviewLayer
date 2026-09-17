@@ -1,6 +1,6 @@
 /*
 
- CameraViewController.swift
+ DefaultScenarioViewController.swift
  LMCaptureVideoPreviewLayerExample
 
  Copyright (c) 2016 Luis Laugga.
@@ -14,7 +14,11 @@ import os
 
 private let log = Logger(subsystem: "com.laugga.LMCaptureVideoPreviewLayerExample", category: "camera")
 
-final class CameraViewController: UIViewController {
+/// The layer as it comes: the back camera, pressed to blur in and released to blur out,
+/// with a button to pause and resume the capture session.
+///
+/// On the Simulator, which has no camera, the preview shows a generated colour grid.
+final class DefaultScenarioViewController: UIViewController {
 
     private let sessionQueue = DispatchQueue(label: "com.laugga.lightmate.sessionQueue")
 
@@ -29,6 +33,8 @@ final class CameraViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
+        // Dark, so the navigation bar stays legible over the black preview
+        overrideUserInterfaceStyle = .dark
         view.backgroundColor = .black
 
         previewView.backgroundColor = .black
@@ -206,3 +212,9 @@ final class CameraViewController: UIViewController {
         log.debug("Camera: \(notification.name.rawValue, privacy: .public)")
     }
 }
+
+#if DEBUG
+#Preview("Default") {
+    DefaultScenarioViewController()
+}
+#endif
