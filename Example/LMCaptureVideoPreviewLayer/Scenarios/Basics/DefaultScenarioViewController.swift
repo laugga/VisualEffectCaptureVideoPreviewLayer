@@ -25,6 +25,11 @@ final class DefaultScenarioViewController: UIViewController {
     private var session: AVCaptureSession?
     private var device: AVCaptureDevice?
 
+    /// Whether the person paused the session. The button and the preview follow this
+    /// rather than `AVCaptureSession.isRunning`, which only changes once the session
+    /// queue has got round to starting or stopping it.
+    private var isPaused = false
+
     private let previewView = CameraPreviewView(frame: .zero)
     private let pauseButton = UIButton(type: .system)
 
@@ -81,7 +86,13 @@ final class DefaultScenarioViewController: UIViewController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
 
-        session?.stopRunning()
+        guard let session else {
+            return
+        }
+
+        sessionQueue.async {
+            session.stopRunning()
+        }
     }
 
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
@@ -183,12 +194,14 @@ final class DefaultScenarioViewController: UIViewController {
     }
 
     private func startRunning() {
-        guard let session, !session.isRunning else {
+        guard let session, !isPaused else {
             return
         }
 
         sessionQueue.async {
-            session.startRunning()
+            if !session.isRunning {
+                session.startRunning()
+            }
         }
     }
 
@@ -200,13 +213,20 @@ final class DefaultScenarioViewController: UIViewController {
             return
         }
 
-        // Start or stop the running session
-        if session.isRunning {
-            sessionQueue.async { session.stopRunning() }
-            pauseButton.setTitle("Resume", for: .normal)
-        } else {
-            sessionQueue.async { session.startRunning() }
-            pauseButton.setTitle("Pause", for: .normal)
+        isPaused.toggle()
+
+        pauseButton.setTitle(isPaused ? "Resume" : "Pause", for: .normal)
+        previewView.isPaused = isPaused
+
+        // Start or stop the session. The queue runs these in the order they were
+        // tapped, so a tap made while the last one is still under way is not lost
+        let isPaused = isPaused
+        sessionQueue.async {
+            if isPaused {
+                session.stopRunning()
+            } else {
+                session.startRunning()
+            }
         }
     }
 
