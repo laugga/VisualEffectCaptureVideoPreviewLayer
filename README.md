@@ -1,8 +1,8 @@
-# LAUCaptureVideoPreviewLayer
+# LMCaptureVideoPreviewLayer
 
 ## Introduction
 
-LAUCaptureVideoPreviewLayer is a preview layer for the AVCaptureSession with a Metal-based blur filter. You can use it like a AVCaptureVideoPreviewLayer and then dynamically/in real-time apply a blur filter to the video output frames.
+LMCaptureVideoPreviewLayer is a preview layer for the AVCaptureSession with a Metal-based blur filter. You can use it like a AVCaptureVideoPreviewLayer and then dynamically/in real-time apply a blur filter to the video output frames.
 
 It was developed for [Lightmate](https://lightmate.app/ "Lightmate")'s iOS app with the goal of replacing AVFoundation's *AVCaptureVideoPreviewLayer*. This is mainly an R&D project and there are still many optimizations needed before it can be used in a "production" context. This is an attempt to share some of the learnings and components used in the app.
 
@@ -18,27 +18,27 @@ It was developed for [Lightmate](https://lightmate.app/ "Lightmate")'s iOS app w
 Add the package to the `dependencies` of your `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/laugga/LAUCaptureVideoPreviewLayer.git", from: "0.2.0")
+.package(url: "https://github.com/laugga/VisualEffectCaptureVideoPreviewLayer.git", from: "0.2.0")
 ```
 
 and to the target that uses it:
 
 ```swift
-.target(name: "YourTarget", dependencies: ["LAUCaptureVideoPreviewLayer"])
+.target(name: "YourTarget", dependencies: ["LMCaptureVideoPreviewLayer"])
 ```
 
 In Xcode, use *File > Add Package Dependencies…* and paste the same URL.
 
-LAUCaptureVideoPreviewLayer's interface is very similar to AVCaptureVideoPreviewLayer. Here's an example:
+LMCaptureVideoPreviewLayer's interface is very similar to AVCaptureVideoPreviewLayer. Here's an example:
 
 ```swift
-import LAUCaptureVideoPreviewLayer
+import LMCaptureVideoPreviewLayer
 
 // Create your AVCaptureSession
 // ...
 
-// Create the session video preview layer from LAUCaptureVideoPreviewLayer
-let videoPreviewLayer = LAUCaptureVideoPreviewLayer(session: captureSession)
+// Create the session video preview layer from LMCaptureVideoPreviewLayer
+let videoPreviewLayer = LMCaptureVideoPreviewLayer(session: captureSession)
 view.layer.addSublayer(videoPreviewLayer)
 
 // Change the blur property just like you change opacity
@@ -54,7 +54,7 @@ The layer is a `CAMetalLayer` subclass, so its `frame` has to be kept in sync wi
 
 The example is a single view application with a AVCaptureSession and a AVCaptureDeviceInput (back camera).
 
-![Blur in out example](docs/figures/blur-in-out-example.gif)
+![Blur in out example](Docs/figures/blur-in-out-example.gif)
 
 __Interactions:__
 
@@ -62,37 +62,37 @@ __Interactions:__
 * Pull-down to gradually decrease blur value
 * Pause/Resume the capture session (animated)
 
-Open `examples/LAUCaptureVideoPreviewLayerExample/LAUCaptureVideoPreviewLayerExample.xcodeproj`. It references the package at the root of this repository, so there is nothing to install. There is no capture device on the Simulator, so the example feeds the preview layer with a generated colour grid there, and shows the real camera on a device.
+Open `Example/LMCaptureVideoPreviewLayerExample/LMCaptureVideoPreviewLayerExample.xcodeproj`. It references the package at the root of this repository, so there is nothing to install. There is no capture device on the Simulator, so the example feeds the preview layer with a generated colour grid there, and shows the real camera on a device.
 
 ## Repository layout
 
 | Path | Contents |
 | --- | --- |
-| `Sources/LAUCaptureVideoPreviewLayer` | The layer, the capture pipeline and the `.metal` shaders |
-| `Sources/LAUCaptureVideoPreviewLayerShaderTypes` | The structures shared between Swift and the shading language |
-| `Tests/LAUCaptureVideoPreviewLayerTests` | Rendering tests, comparing against reference images |
-| `examples` | The example application |
-| `docs/matlab` | The script that generates the gaussian kernel tables |
+| `Sources/LMCaptureVideoPreviewLayer` | The layer, the capture pipeline and the `.metal` shaders |
+| `Sources/LMCaptureVideoPreviewLayerShaderTypes` | The structures shared between Swift and the shading language |
+| `Tests/LMCaptureVideoPreviewLayerTests` | Rendering tests, comparing against reference images |
+| `Example` | The example application |
+| `Docs/matlab` | The script that generates the gaussian kernel tables |
 
 The rendering tests compare against reference images captured at a 2x scale, so they are skipped unless they run on a device with a 2x screen, such as the iPhone SE:
 
 ```bash
-xcodebuild test -scheme LAUCaptureVideoPreviewLayer -destination 'platform=iOS Simulator,name=iPhone SE (3rd generation)'
+xcodebuild test -scheme LMCaptureVideoPreviewLayer -destination 'platform=iOS Simulator,name=iPhone SE (3rd generation)'
 ```
 
 Add `,OS=17.0` to the destination if you have that simulator installed for more than one runtime, otherwise the name is ambiguous and xcodebuild will not match it.
 
 ## Development Notes
 
-__LAUCaptureVideoPreviewLayer vs. AVCaptureVideoPreviewLayer__
+__LMCaptureVideoPreviewLayer vs. AVCaptureVideoPreviewLayer__
 
-LAUCaptureVideoPreviewLayer could be used as a drop-in replacement for AVCaptureVideoPreviewLayer. Our intention during the development was to copy and mimic as much as possible AVCaptureVideoPreviewLayer's interface and behavior. However, under the hood that is totally different. To start AVCaptureVideoPreviewLayer is Apple's own preview layer with access to unknown APIs. If you inspect an AVCaptureSession's connections you'll notice AVCaptureVideoPreviewLayer is used as an output (just like AVCaptureVideoDataOutput, for example).
+LMCaptureVideoPreviewLayer could be used as a drop-in replacement for AVCaptureVideoPreviewLayer. Our intention during the development was to copy and mimic as much as possible AVCaptureVideoPreviewLayer's interface and behavior. However, under the hood that is totally different. To start AVCaptureVideoPreviewLayer is Apple's own preview layer with access to unknown APIs. If you inspect an AVCaptureSession's connections you'll notice AVCaptureVideoPreviewLayer is used as an output (just like AVCaptureVideoDataOutput, for example).
 
-In order to make LAUCaptureVideoPreviewLayer work we need to add a AVCaptureVideoDataOutput to the existing AVCaptureSession. We then use the `captureOutput(_:didOutput:from:)` delegate method to render each frame and apply the blur filter. If you need to use a AVCaptureVideoDataOutput yourself it's also possible. In that case LAUCaptureVideoPreviewLayer will detect if an existing AVCaptureVideoDataOutput is already added to the session's outputs and then _hijack_ it. Your `captureOutput(_:didOutput:from:)` delegate method will then be called from LAUCaptureVideoPreviewLayer.
+In order to make LMCaptureVideoPreviewLayer work we need to add a AVCaptureVideoDataOutput to the existing AVCaptureSession. We then use the `captureOutput(_:didOutput:from:)` delegate method to render each frame and apply the blur filter. If you need to use a AVCaptureVideoDataOutput yourself it's also possible. In that case LMCaptureVideoPreviewLayer will detect if an existing AVCaptureVideoDataOutput is already added to the session's outputs and then _hijack_ it. Your `captureOutput(_:didOutput:from:)` delegate method will then be called from LMCaptureVideoPreviewLayer.
 
 Only the part of the AVCaptureVideoPreviewLayer interface that is actually implemented is exposed: `init(session:)`, `session`, `blur`, `setBlur(_:animated:)` and `videoGravity`. The coordinate conversion helpers are not implemented.
 
-Remember, LAUCaptureVideoPreviewLayer is experimental. Please report any issues you find.
+Remember, LMCaptureVideoPreviewLayer is experimental. Please report any issues you find.
 
 __Rendering__
 
@@ -112,7 +112,7 @@ __Gaussian Blur Implementation__
 3. Downsampling
 4. Dynamic texture lookup
 
-The kernels are not computed at runtime. `docs/matlab/LAUCaptureVideoPreviewLayer.m` generates eleven kernels, one per blur step between 0 and 1, and the weights and offsets are kept in `LAUCaptureVideoPreviewLayerGaussianFilterKernel.swift`. Animating the blur walks through them.
+The kernels are not computed at runtime. `Docs/matlab/LMCaptureVideoPreviewLayer.m` generates eleven kernels, one per blur step between 0 and 1, and the weights and offsets are kept in `LMCaptureVideoPreviewLayerGaussianFilterKernel.swift`. Animating the blur walks through them.
 
 ## References
 

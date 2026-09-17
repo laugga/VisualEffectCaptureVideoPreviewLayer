@@ -2,7 +2,7 @@
 
 ## What this is
 
-**`LAUCaptureVideoPreviewLayer`** is a preview layer for an `AVCaptureSession`
+**`LMCaptureVideoPreviewLayer`** is a preview layer for an `AVCaptureSession`
 with a GPU blur filter — a near-drop-in replacement for AVFoundation's
 `AVCaptureVideoPreviewLayer` that adds one animatable `blur` property in
 `[0,1]`. It is a `CAMetalLayer` subclass; the blur is a separable Gaussian
@@ -35,15 +35,19 @@ Run from the repository root:
 
 ```bash
 # Build and run the 4 tests
-xcodebuild test -scheme LAUCaptureVideoPreviewLayer \
+xcodebuild test -scheme LMCaptureVideoPreviewLayer \
   -destination 'platform=iOS Simulator,name=iPhone SE (3rd generation)'
 
 # Build the example app
 xcodebuild build \
-  -project examples/LAUCaptureVideoPreviewLayerExample/LAUCaptureVideoPreviewLayerExample.xcodeproj \
-  -scheme LAUCaptureVideoPreviewLayerExample \
+  -project Example/LMCaptureVideoPreviewLayerExample/LMCaptureVideoPreviewLayerExample.xcodeproj \
+  -scheme LMCaptureVideoPreviewLayerExample \
   -destination 'platform=iOS Simulator,name=iPhone SE (3rd generation)'
 ```
+
+The `Makefile`s wrap the same commands: `make build`, `make test` and `clean`
+at the root are the package's; `make -C Example build`, `make -C Example test`
+and `make -C Example archive` are the Example app's.
 
 These are the same two steps `.github/workflows/ci.yml` runs on every pull
 request (`Build and test`). If the simulator name is ambiguous because it is
@@ -65,13 +69,12 @@ separate component, and without it the `.metal` sources do not compile. CI
 downloads it with `xcodebuild -downloadComponent MetalToolchain`; do the same
 locally if the build fails on the shaders.
 
-**There is no lint step and no `Makefile`.** No SwiftLint, no swift-format. The
-commands above are the whole gate. With no root `deploy` target, there is no
-try-it build for this repository either.
+**There is no lint step.** No SwiftLint, no swift-format. The commands above
+are the whole gate.
 
 ## Run the example app
 
-`examples/LAUCaptureVideoPreviewLayerExample/` is a single-view app — a capture
+`Example/LMCaptureVideoPreviewLayerExample/` is a single-view app — a capture
 session, a back camera, tap to blur in, pull down to blur out — and it is the
 only place the layer is exercised on screen. Its xcodeproj references the
 package at the repository root as a local package (`../..`), so there is
@@ -82,17 +85,55 @@ example swaps in `MockCaptureVideoPreviewLayerInternal`, which feeds the layer a
 generated colour grid, so the on-screen path can still be checked there. The
 real camera path only runs on a device.
 
+## Try it
+
+The Example app has a root `deploy`, so opening a pull request or pushing to
+one builds, archives and uploads it to Firebase App Distribution — the same
+contract every UI-surface repository follows (`CONVENTIONS.md` → *UI surfaces
+only*).
+
+```bash
+make deploy   # delegates to $(MAKE) -C Example deploy
+```
+
+- **Configuration** — `Example/Makefile` names the destination directly as
+  `FIREBASE_PROJECT`/`FIREBASE_APP`/`FIREBASE_GROUPS`: project
+  `lightmate-development-390f6` ("Lightmate Development"), app
+  `com.laugga.VisualEffectCaptureVideoPreviewLayer`
+  (`1:480717957783:ios:5d8fa27e0dc6888c8f97d2`). The Example app links no
+  Firebase SDK, so there is no `GoogleService-Info.plist` to read these from
+  instead.
+- **Build and signing** — Debug configuration, automatic signing, team
+  `JJC3QT2D2L`. `Example/Support/ExportOptions.plist` exports with
+  `method = debugging`, so only devices registered in that Apple team can
+  install the build.
+- **Version** — `Example/Scripts/Version/version.sh`, vendored unchanged from
+  `laugga/ops`'s `share/version/` (`CONVENTIONS.md` → *Versioning*).
+  `make -C Example deploy` refuses a dirty tree or unpushed commits before
+  archiving.
+- **Goes to** — Firebase App Distribution, group `internal`. The group and
+  the machine's Firebase CLI login are host setup; `deploy` never creates
+  either.
+- **One-time setup** — the machine running `deploy` must be signed in to
+  Apple team `JJC3QT2D2L` in Xcode, and to the Firebase CLI
+  (`firebase login`). A new tester's device is registered in that Apple team
+  by hand before it can install a build.
+- **What it prints** — a tester install link, which goes in this section of
+  the pull request description, replaced wholesale on the next build rather
+  than appended.
+
 ## Project layout
 
 | Path | What's there |
 |---|---|
 | `Package.swift` | The build. Two targets and a test target, iOS 17.0. |
-| `Sources/LAUCaptureVideoPreviewLayer/` | The library. `LAUCaptureVideoPreviewLayer.swift` is the layer and the render pipeline; `…Internal.swift` owns the capture session and the sample buffer; `…Utilities.swift` has `TextureInstance`, metallib loading and pipeline state creation; `…Shaders.swift` holds the shader function names; `…GaussianFilterKernel.swift` the kernel tables. |
-| `Sources/LAUCaptureVideoPreviewLayer/LAUCaptureVideoPreviewLayerShaders.metal` | The shaders, compiled at build time into the target's default metallib. |
-| `Sources/LAUCaptureVideoPreviewLayerShaderTypes/` | A C target whose only job is `include/LAUCaptureVideoPreviewLayerStructures.h`: the buffer indices, `VertexData_t` and `FilterUniforms_t`, read by both Swift and the `.metal` file. The `.c` file is empty on purpose — SwiftPM will not build a target without a compilation unit. |
-| `Tests/LAUCaptureVideoPreviewLayerTests/` | The 4 tests, the `UIImage` comparison helper, a mock pipeline and `Samples.xcassets` with the source and reference images. |
-| `examples/LAUCaptureVideoPreviewLayerExample/` | The example app. |
-| `docs/` | `features.md`, `figures/` (the README's GIF) and `matlab/` — the MATLAB script that generates the filter kernels, plus its plots. |
+| `Makefile` | The package's `build`, `test` and `clean`, wrapping `xcodebuild` (CONVENTIONS.md → Swift library). `deploy` is the only one of the Example's targets exposed here, and it delegates to `Example/Makefile`. |
+| `Sources/LMCaptureVideoPreviewLayer/` | The library. `LMCaptureVideoPreviewLayer.swift` is the layer and the render pipeline; `…Internal.swift` owns the capture session and the sample buffer; `…Utilities.swift` has `TextureInstance`, metallib loading and pipeline state creation; `…Shaders.swift` holds the shader function names; `…GaussianFilterKernel.swift` the kernel tables. |
+| `Sources/LMCaptureVideoPreviewLayer/LMCaptureVideoPreviewLayerShaders.metal` | The shaders, compiled at build time into the target's default metallib. |
+| `Sources/LMCaptureVideoPreviewLayerShaderTypes/` | A C target whose only job is `include/LMCaptureVideoPreviewLayerStructures.h`: the buffer indices, `VertexData_t` and `FilterUniforms_t`, read by both Swift and the `.metal` file. The `.c` file is empty on purpose — SwiftPM will not build a target without a compilation unit. |
+| `Tests/LMCaptureVideoPreviewLayerTests/` | The 4 tests, the `UIImage` comparison helper, a mock pipeline and `Samples.xcassets` with the source and reference images. |
+| `Example/LMCaptureVideoPreviewLayerExample/` | The example app. `Example/Makefile` owns its `build`, `test`, `archive` and `deploy`; `Example/Scripts/Version/` is vendored unchanged from `ops`'s `share/version/`; `Example/Support/ExportOptions.plist` configures the archive export. |
+| `Docs/` | `features.md`, `figures/` (the README's GIF) and `matlab/` — the MATLAB script that generates the filter kernels, plus its plots. |
 | `CHANGELOG.md` | Human-written; the Metal, Swift and SPM changes sit under `Unreleased`. |
 
 ## Conventions
@@ -103,12 +144,14 @@ its task are the same in every Laugga Practice repository and are documented in
 
 - **The default and integration branch is `main`.** Open pull requests against
   it.
-- **Every type carries the `LAU` prefix; the repository does not.** The
+- **Every type carries the `LM` prefix; the repository does not.** The
   repository is `VisualEffectCaptureVideoPreviewLayer`, the class is
-  `LAUCaptureVideoPreviewLayer`, and the mismatch is deliberate and settled.
-  Keep public types on `LAU`; do not rename toward the repository name.
+  `LMCaptureVideoPreviewLayer`, and the mismatch is deliberate. Keep public
+  types on `LM`; do not rename toward the repository name. (Renamed from the
+  original `LAU` prefix — no functional change, no consumer was pinned to the
+  old name.)
 - **Every file under `Sources/` opens with the MIT-style license header block**
-  carrying the file name and `LAUCaptureVideoPreviewLayer`. Copy it into new
+  carrying the file name and `LMCaptureVideoPreviewLayer`. Copy it into new
   files.
 - **Document with `///`**, and keep the public surface small. What is public is
   what is implemented: `init(session:)`, `session`, `blur`,
@@ -117,7 +160,7 @@ its task are the same in every Laugga Practice repository and are documented in
 - **Log through the module's `log`** (`os.Logger`, in `…Utilities.swift`), not
   `print`.
 - **Anything both Swift and the shaders read goes in
-  `LAUCaptureVideoPreviewLayerStructures.h`**, and must be valid in both C and
+  `LMCaptureVideoPreviewLayerStructures.h`**, and must be valid in both C and
   the Metal Shading Language. Do not duplicate a layout as a Swift struct: the
   shared header is what guarantees the two sides agree.
 
@@ -141,18 +184,18 @@ its task are the same in every Laugga Practice repository and are documented in
   renders of the same frame differing by about 2%.
 
 - **The blur implementation is selected by two flags at the top of
-  `LAUCaptureVideoPreviewLayer.swift`.** `filterBoundsEnabled = false` and
+  `LMCaptureVideoPreviewLayer.swift`.** `filterBoundsEnabled = false` and
   `filterBilinearTextureSamplingEnabled = true` choose which of three fragment
   functions the blur pipeline uses. At these settings the other two are
   unreachable. Behaviour you cannot reproduce may be behind a flag that is off.
 
 - **The kernel tables are generated.** `…GaussianFilterKernel.swift` holds the
-  output of `docs/matlab/LAUCaptureVideoPreviewLayer.m`. Regenerate rather than
+  output of `docs/matlab/LMCaptureVideoPreviewLayer.m`. Regenerate rather than
   hand-edit, and keep `kFilterKernelMaxSamples` and `kFilterKernelMaxWeights` in
   the shared header large enough for them.
 
 - **The tests reach into internal API.** They inject
-  `MockLAUCaptureVideoPreviewLayerInternal` through the public `internal`
+  `MockLMCaptureVideoPreviewLayerInternal` through the public `internal`
   property and call `drawPixelBuffer()` through `@testable import`. Changing
   either breaks the tests although neither is API anyone was meant to use. The
   example has its own, similar stand-in in
@@ -162,10 +205,7 @@ its task are the same in every Laugga Practice repository and are documented in
   its textures leak if preview layers are created repeatedly. Known, not yet
   fixed.
 
-- **The example's bundle identifier is still `co.coletiv.*`**, a former
-  organisation. Leave it unless that is the task.
-
-- **`docs/matlab/LAUCaptureVideoPreviewLayer` is a Photoshop file with no
+- **`Docs/matlab/LMCaptureVideoPreviewLayer` is a Photoshop file with no
   extension**, sitting next to the `.m` script of the same name. Not a
   directory, not MATLAB. Leave it alone.
 
@@ -173,7 +213,8 @@ its task are the same in every Laugga Practice repository and are documented in
 
 Before opening a pull request, confirm:
 
-- [ ] `xcodebuild test -scheme LAUCaptureVideoPreviewLayer -destination 'platform=iOS Simulator,name=iPhone SE (3rd generation)'` runs 4 tests with 0 failures and 0 skipped
-- [ ] The example builds with the command above
-- [ ] If a structure shared with the shaders changed, it changed in `LAUCaptureVideoPreviewLayerStructures.h`, not in a Swift copy
+- [ ] `xcodebuild test -scheme LMCaptureVideoPreviewLayer -destination 'platform=iOS Simulator,name=iPhone SE (3rd generation)'` runs 4 tests with 0 failures and 0 skipped
+- [ ] The example builds with the command above, or `make -C Example build`
+- [ ] If a structure shared with the shaders changed, it changed in `LMCaptureVideoPreviewLayerStructures.h`, not in a Swift copy
 - [ ] `CHANGELOG.md` has an `Unreleased` line if a user of the package would notice the change
+- [ ] `make deploy` ran and the pull request description's `## Try it` section carries the fresh install link

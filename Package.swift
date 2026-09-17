@@ -3,29 +3,29 @@
 import PackageDescription
 
 let package = Package(
-    name: "LAUCaptureVideoPreviewLayer",
+    name: "LMCaptureVideoPreviewLayer",
     platforms: [
         .iOS(.v17)
     ],
     products: [
         .library(
-            name: "LAUCaptureVideoPreviewLayer",
-            targets: ["LAUCaptureVideoPreviewLayer"]
+            name: "LMCaptureVideoPreviewLayer",
+            targets: ["LMCaptureVideoPreviewLayer"]
         )
     ],
     targets: [
         // Types shared between the library and the Metal shading language sources,
         // so that the uniform and vertex layouts are guaranteed to match on both sides
         .target(
-            name: "LAUCaptureVideoPreviewLayerShaderTypes"
+            name: "LMCaptureVideoPreviewLayerShaderTypes"
         ),
         .target(
-            name: "LAUCaptureVideoPreviewLayer",
-            dependencies: ["LAUCaptureVideoPreviewLayerShaderTypes"]
+            name: "LMCaptureVideoPreviewLayer",
+            dependencies: ["LMCaptureVideoPreviewLayerShaderTypes"]
         ),
         .testTarget(
-            name: "LAUCaptureVideoPreviewLayerTests",
-            dependencies: ["LAUCaptureVideoPreviewLayer"],
+            name: "LMCaptureVideoPreviewLayerTests",
+            dependencies: ["LMCaptureVideoPreviewLayer"],
             resources: [
                 .process("Samples.xcassets")
             ]

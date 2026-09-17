@@ -1,5 +1,6 @@
 ## Unreleased
 
+* Renamed every public type and file from the `LAU` prefix to `LM` (e.g. `LAUCaptureVideoPreviewLayer` → `LMCaptureVideoPreviewLayer`); no consumer was pinned to the old name
 * Metal based implementation, replacing OpenGL ES 2.0
 * Written in Swift
 * Distributed with Swift Package Manager, CocoaPods support removed
