@@ -24,6 +24,10 @@ final class CameraPreviewView: UIView {
 
     private var longPressBeganLocation: CGPoint = .zero
 
+    /// Whether the capture session is paused. The preview layer stays blurred while it
+    /// is, so a press does not blur it in and out, which would look like it resumed.
+    var isPaused = false
+
     override init(frame: CGRect) {
         super.init(frame: frame)
 
@@ -109,7 +113,9 @@ final class CameraPreviewView: UIView {
             longPressBeganLocation = sender.location(in: self)
 
             // Switch to blur = 1.0 when the user presses
-            videoPreviewLayer?.setBlur(1.0, animated: true)
+            if !isPaused {
+                videoPreviewLayer?.setBlur(1.0, animated: true)
+            }
 
             CATransaction.begin()
             CATransaction.setDisableActions(true)
@@ -118,6 +124,10 @@ final class CameraPreviewView: UIView {
             CATransaction.commit()
 
         case .changed:
+            guard !isPaused else {
+                break
+            }
+
             // Pull up to gradually decrease the blur value
             let changedLocation = sender.location(in: self)
             let offsetPercent = (longPressBeganLocation.y - changedLocation.y) / 100.0
@@ -126,7 +136,9 @@ final class CameraPreviewView: UIView {
 
         case .ended, .failed, .cancelled:
             // Turn the blur off when the user stops pressing
-            videoPreviewLayer?.setBlur(0.0, animated: true)
+            if !isPaused {
+                videoPreviewLayer?.setBlur(0.0, animated: true)
+            }
 
             longPressBeganLocationLayer.isHidden = true
 

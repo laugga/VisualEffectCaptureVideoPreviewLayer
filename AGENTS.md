@@ -40,8 +40,8 @@ xcodebuild test -scheme LMCaptureVideoPreviewLayer \
 
 # Build the example app
 xcodebuild build \
-  -project Example/LMCaptureVideoPreviewLayerExample/LMCaptureVideoPreviewLayerExample.xcodeproj \
-  -scheme LMCaptureVideoPreviewLayerExample \
+  -project Example/LMCaptureVideoPreviewLayer.xcodeproj \
+  -scheme Example \
   -destination 'platform=iOS Simulator,name=iPhone SE (3rd generation)'
 ```
 
@@ -74,11 +74,34 @@ are the whole gate.
 
 ## Run the example app
 
-`Example/LMCaptureVideoPreviewLayerExample/` is a single-view app — a capture
-session, a back camera, tap to blur in, pull down to blur out — and it is the
-only place the layer is exercised on screen. Its xcodeproj references the
-package at the repository root as a local package (`../..`), so there is
-nothing to install; open the project and run.
+`Example/LMCaptureVideoPreviewLayer.xcodeproj` is the example app, laid out
+after the *UI Component Repository Example App Pattern* note in Notion, the
+same shape as `HorizontalPicker`'s. It is the only place the layer is exercised
+on screen. The project references the package at the repository root as a
+local package (`..`), so there is nothing to install; open it and run the
+shared `Example` scheme.
+
+- **Naming** — the project, target product and installed app are
+  `LMCaptureVideoPreviewLayer`; the target is `LMCaptureVideoPreviewLayerExample`
+  and so is its Swift module (`PRODUCT_MODULE_NAME`), so `import
+  LMCaptureVideoPreviewLayer` still means the package. The bundle identifier
+  stays `com.laugga.VisualEffectCaptureVideoPreviewLayer`, which the Firebase
+  app is registered for.
+- **Layout** — `Example/LMCaptureVideoPreviewLayer/` is a synchronized folder,
+  so a file added under it is in the target with no project edit. `App/` is
+  the app and scene delegates; `Catalog/` is the index the app opens on and
+  nothing else; `Scenarios/<Section>/` holds one view controller per scenario,
+  each with a `#Preview`; `Resources/` holds the asset catalog and the launch
+  storyboard. The Info.plist is generated from `INFOPLIST_KEY_*` build settings.
+- **Scenarios** — one so far, `Basics → Default`: a capture session, the back
+  camera, press to blur in, drag up to ease it off, release to blur out, and a
+  button to pause the session. Add a scenario by writing its view controller
+  and listing it in `Catalog/Catalog.swift`; do not add a section with nothing
+  in it.
+
+Each visit to a scenario creates a new preview layer, and the `CADisplayLink`
+gotcha below means none of them is freed, so opening a scenario repeatedly in
+one run leaks.
 
 The Simulator has no camera. Under `#if targetEnvironment(simulator)` the
 example swaps in `MockCaptureVideoPreviewLayerInternal`, which feeds the layer a
@@ -132,7 +155,7 @@ make deploy   # delegates to $(MAKE) -C Example deploy
 | `Sources/LMCaptureVideoPreviewLayer/LMCaptureVideoPreviewLayerShaders.metal` | The shaders, compiled at build time into the target's default metallib. |
 | `Sources/LMCaptureVideoPreviewLayerShaderTypes/` | A C target whose only job is `include/LMCaptureVideoPreviewLayerStructures.h`: the buffer indices, `VertexData_t` and `FilterUniforms_t`, read by both Swift and the `.metal` file. The `.c` file is empty on purpose — SwiftPM will not build a target without a compilation unit. |
 | `Tests/LMCaptureVideoPreviewLayerTests/` | The 4 tests, the `UIImage` comparison helper, a mock pipeline and `Samples.xcassets` with the source and reference images. |
-| `Example/LMCaptureVideoPreviewLayerExample/` | The example app. `Example/Makefile` owns its `build`, `test`, `archive` and `deploy`; `Example/Scripts/Version/` is vendored unchanged from `ops`'s `share/version/`; `Example/Support/ExportOptions.plist` configures the archive export. |
+| `Example/LMCaptureVideoPreviewLayer.xcodeproj`, `Example/LMCaptureVideoPreviewLayer/` | The example app, with its shared `Example` scheme, and its `App/`, `Catalog/`, `Scenarios/` and `Resources/`. `Example/Makefile` owns its `build`, `test`, `archive` and `deploy`; `Example/Scripts/Version/` is vendored unchanged from `ops`'s `share/version/`; `Example/Support/ExportOptions.plist` configures the archive export. |
 | `Docs/` | `features.md`, `figures/` (the README's GIF) and `matlab/` — the MATLAB script that generates the filter kernels, plus its plots. |
 | `CHANGELOG.md` | Human-written; the Metal, Swift and SPM changes sit under `Unreleased`. |
 

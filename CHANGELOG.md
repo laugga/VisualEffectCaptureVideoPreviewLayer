@@ -6,6 +6,7 @@
 * Distributed with Swift Package Manager, CocoaPods support removed
 * Minimum deployment target raised to iOS 17.0
 * Only the implemented part of the AVCaptureVideoPreviewLayer interface is exposed
+* The layer reacts to its session starting and stopping on the main queue, whichever thread started or stopped it
 
 ## 0.1.0
 

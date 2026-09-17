@@ -1,6 +1,6 @@
 /*
 
- CameraViewController.swift
+ DefaultScenarioViewController.swift
  LMCaptureVideoPreviewLayerExample
 
  Copyright (c) 2016 Luis Laugga.
@@ -14,12 +14,21 @@ import os
 
 private let log = Logger(subsystem: "com.laugga.LMCaptureVideoPreviewLayerExample", category: "camera")
 
-final class CameraViewController: UIViewController {
+/// The layer as it comes: the back camera, pressed to blur in and released to blur out,
+/// with a button to pause and resume the capture session.
+///
+/// On the Simulator, which has no camera, the preview shows a generated colour grid.
+final class DefaultScenarioViewController: UIViewController {
 
     private let sessionQueue = DispatchQueue(label: "com.laugga.lightmate.sessionQueue")
 
     private var session: AVCaptureSession?
     private var device: AVCaptureDevice?
+
+    /// Whether the person paused the session. The button and the preview follow this
+    /// rather than `AVCaptureSession.isRunning`, which only changes once the session
+    /// queue has got round to starting or stopping it.
+    private var isPaused = false
 
     private let previewView = CameraPreviewView(frame: .zero)
     private let pauseButton = UIButton(type: .system)
@@ -28,6 +37,12 @@ final class CameraViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+
+        // The preview runs under the navigation bar, so give the bar a background
+        // of its own to keep the title and back button legible over it
+        let navigationBarAppearance = UINavigationBarAppearance()
+        navigationBarAppearance.configureWithDefaultBackground()
+        navigationItem.scrollEdgeAppearance = navigationBarAppearance
 
         view.backgroundColor = .black
 
@@ -71,7 +86,13 @@ final class CameraViewController: UIViewController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
 
-        session?.stopRunning()
+        guard let session else {
+            return
+        }
+
+        sessionQueue.async {
+            session.stopRunning()
+        }
     }
 
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
@@ -173,12 +194,14 @@ final class CameraViewController: UIViewController {
     }
 
     private func startRunning() {
-        guard let session, !session.isRunning else {
+        guard let session, !isPaused else {
             return
         }
 
         sessionQueue.async {
-            session.startRunning()
+            if !session.isRunning {
+                session.startRunning()
+            }
         }
     }
 
@@ -190,13 +213,20 @@ final class CameraViewController: UIViewController {
             return
         }
 
-        // Start or stop the running session
-        if session.isRunning {
-            sessionQueue.async { session.stopRunning() }
-            pauseButton.setTitle("Resume", for: .normal)
-        } else {
-            sessionQueue.async { session.startRunning() }
-            pauseButton.setTitle("Pause", for: .normal)
+        isPaused.toggle()
+
+        pauseButton.setTitle(isPaused ? "Resume" : "Pause", for: .normal)
+        previewView.isPaused = isPaused
+
+        // Start or stop the session. The queue runs these in the order they were
+        // tapped, so a tap made while the last one is still under way is not lost
+        let isPaused = isPaused
+        sessionQueue.async {
+            if isPaused {
+                session.stopRunning()
+            } else {
+                session.startRunning()
+            }
         }
     }
 
@@ -206,3 +236,9 @@ final class CameraViewController: UIViewController {
         log.debug("Camera: \(notification.name.rawValue, privacy: .public)")
     }
 }
+
+#if DEBUG
+#Preview("Default") {
+    DefaultScenarioViewController()
+}
+#endif

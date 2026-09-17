@@ -28,6 +28,8 @@
 import AVFoundation
 
 /// Informs the delegate object about state changes in the capture pipeline.
+///
+/// The delegate is always called on the main queue.
 public protocol LMCaptureVideoPreviewLayerInternalDelegate: AnyObject {
 
     func captureVideoPreviewLayerInternal(_ internalPipeline: LMCaptureVideoPreviewLayerInternal,
@@ -173,6 +175,16 @@ open class LMCaptureVideoPreviewLayerInternal: NSObject {
     // MARK: - AVCaptureSession notifications
 
     @objc private func sessionDidPostNotification(_ notification: Notification) {
+
+        // AVCaptureSession posts these on whichever thread called startRunning() or
+        // stopRunning(), which is a background queue since both block. The delegate
+        // changes layers and draws, so it has to be called on the main queue.
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in
+                self?.sessionDidPostNotification(notification)
+            }
+            return
+        }
 
         switch notification.name {
         case AVCaptureSession.wasInterruptedNotification,
