@@ -24,12 +24,12 @@ jobs:
       - name: Test
         run: |
           xcodebuild test \
-            -scheme LAUCaptureVideoPreviewLayer \
+            -scheme LMCaptureVideoPreviewLayer \
             -destination 'platform=iOS Simulator,name=iPhone SE (3rd generation)'
 
       - name: Build the example
         run: |
           xcodebuild build \
-            -project examples/LAUCaptureVideoPreviewLayerExample/LAUCaptureVideoPreviewLayerExample.xcodeproj \
-            -scheme LAUCaptureVideoPreviewLayerExample \
+            -project Example/LMCaptureVideoPreviewLayerExample/LMCaptureVideoPreviewLayerExample.xcodeproj \
+            -scheme LMCaptureVideoPreviewLayerExample \
             -destination 'platform=iOS Simulator,name=iPhone SE (3rd generation)'
